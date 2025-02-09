@@ -1,4 +1,4 @@
-import { execute } from './index.js';
+import { parseBrainfuck } from './index.js';
 
 const code = `
   ++
@@ -20,4 +20,4 @@ const code = `
   < .
 `;
 
-execute(code);
+console.log(parseBrainfuck('++++[[-]]--'));
