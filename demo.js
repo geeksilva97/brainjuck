@@ -1,4 +1,5 @@
-import { parseBrainfuck } from './index.js';
+import fs from 'node:fs';
+import { executeBrainfuck, parseBrainfuck } from './index.js';
 
 const code = `
   ++
@@ -20,4 +21,4 @@ const code = `
   < .
 `;
 
-console.log(parseBrainfuck('++++[[-]]--'));
+executeBrainfuck(fs.readFileSync('./code.bf', { encoding: 'utf8' }));
