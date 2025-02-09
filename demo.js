@@ -21,4 +21,8 @@ const code = `
   < .
 `;
 
-executeBrainfuck(fs.readFileSync('./code.bf', { encoding: 'utf8' }));
+// const result = parseBrainfuck(fs.readFileSync('./code.bf', { encoding: 'utf8' }));
+// console.log({result});
+
+ executeBrainfuck(fs.readFileSync('./code.bf', { encoding: 'utf8' }));
+

@@ -10,6 +10,12 @@ export function parseBrainfuck(code) {
     const c = code[i];
 
     switch (c) {
+      case ',':
+        instructions.push({ type: 'input' });
+        break;
+      case '.':
+        instructions.push({ type: 'output' });
+        break;
       case '+':
         instructions.push({ type: 'increment' });
         break;
@@ -23,19 +29,22 @@ export function parseBrainfuck(code) {
         instructions.push({ type: 'backward' });
         break;
       case '[':
-        loopStack.push(c);
-        instructions.push({ type: 'begin_loop' });
+        loopStack.push([c, instructions.length]);
+        instructions.push({ type: 'begin_loop', jmp: -1 });
         break;
       case ']':
-        const char = loopStack.pop();
+        const [char, pos] = loopStack.pop();
         if (char !== '[') {
           throw new Error('Unbalanced brackets');
         }
 
-        instructions.push({ type: 'end_loop' });
+        instructions[pos].jmp = instructions.length + 1;
+        instructions.push({ type: 'end_loop', jmp: pos + 1 });
         break;
     }
   }
+
+  instructions.push({ type: 'halt' })
 
   return instructions;
 }
@@ -58,41 +67,54 @@ function readByte() {
 }
 
 export function executeBrainfuck(code) {
+  const instructions = parseBrainfuck(code);
   const memory = new Uint8Array(30000);
   let pointer = 0;
+  let pc = 0;
 
-  for (let i = 0; i < code.length; ++i) {
-    const c = code[i];
+  while (true) {
+    // fetch
+    const instruction = instructions[pc];
+    console.log({ pc, instruction, pointer, pointerContent: memory[pointer] })
 
-    switch (c) {
-      case '.':
+    // decode and execute
+    switch (instruction.type) {
+      case 'output':
         process.stdout.write(String.fromCharCode(memory[pointer]));
         process.stdout.write('\n');
         break;
-      case ',':
+      case 'input':
         memory[pointer] = readByte();
         break;
-      case '+':
+      case 'increment':
         memory[pointer]++;
         break;
-      case '-':
+      case 'decrement':
         memory[pointer]--;
         break;
-      case '>':
+      case 'forward':
         pointer++;
         break;
-      case '<':
+      case 'backward':
         pointer--;
         break;
-        // not trivial how to implement these jumps
-        // we need to keep track of the current instruction and the current loop
-        // we can do this by keeping track of the current instruction index and the current loop index
-      case '[':
-        console.log('need to implement this')
+      case 'begin_loop':
+        if (memory[pointer] === 0) {
+          pc = instruction.jmp;
+          continue;
+        }
         break;
-      case ']':
-        console.log('need to implement this')
+      case 'end_loop':
+        if (memory[pointer] !== 0) {
+          pc = instruction.jmp;
+          continue;
+        }
         break;
+      case 'halt':
+        console.table(memory.slice(0, 10));
+        return;
     }
+
+    pc++;
   }
 }
