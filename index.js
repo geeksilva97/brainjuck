@@ -5,6 +5,7 @@ import fs from 'node:fs';
 export function parseBrainfuck(code) {
   const instructions = [];
   const loopStack = [];
+  let pointer = 0;
 
   for (let i = 0; i < code.length; ++i) {
     const c = code[i];
@@ -17,29 +18,55 @@ export function parseBrainfuck(code) {
         instructions.push({ type: 'output' });
         break;
       case '+':
-        instructions.push({ type: 'increment' });
+        {
+          let inc = 1;
+          while (code[i + 1] === '+') {
+            i++;
+            inc++;
+          }
+          instructions.push({ type: 'increment', inc, pointer });
+        }
         break;
       case '-':
-        instructions.push({ type: 'decrement' });
+        {
+          let inc = -1;
+          while (code[i + 1] === '-') {
+            i++;
+            inc--;
+          }
+          instructions.push({ type: 'decrement', inc, pointer });
+        }
         break;
       case '>':
-        instructions.push({ type: 'forward' });
+        pointer += 1;
+        while (code[i + 1] === '>') {
+          i++;
+          pointer++;
+        }
+        instructions.push({ type: 'forward', head: pointer });
         break;
       case '<':
-        instructions.push({ type: 'backward' });
+        pointer -= 1;
+        while (code[i + 1] === '<') {
+          i++;
+          pointer--;
+        }
+        instructions.push({ type: 'backward', head: pointer });
         break;
       case '[':
         loopStack.push([c, instructions.length]);
         instructions.push({ type: 'begin_loop', jmp: -1 });
         break;
       case ']':
-        const [char, pos] = loopStack.pop();
-        if (char !== '[') {
-          throw new Error('Unbalanced brackets');
-        }
+        {
+          const [char, pos] = loopStack.pop();
+          if (char !== '[') {
+            throw new Error('Unbalanced brackets');
+          }
 
-        instructions[pos].jmp = instructions.length + 1;
-        instructions.push({ type: 'end_loop', jmp: pos + 1 });
+          instructions[pos].jmp = instructions.length + 1;
+          instructions.push({ type: 'end_loop', jmp: pos + 1 });
+        }
         break;
     }
   }
