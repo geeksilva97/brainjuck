@@ -18,40 +18,27 @@ export function parseBrainfuck(code) {
         instructions.push({ type: 'output' });
         break;
       case '+':
+      case '-':
         {
-          let inc = 1;
-          while (code[i + 1] === '+') {
+          let inc = c === '+' ? 1 : -1;
+
+          while (['+', '-'].includes(code[i + 1])) {
+            const peek = code[i + 1];
             i++;
-            inc++;
+            inc += peek === '+' ? 1 : -1;
           }
           instructions.push({ type: 'increment', inc, pointer });
         }
         break;
-      case '-':
-        {
-          let inc = -1;
-          while (code[i + 1] === '-') {
-            i++;
-            inc--;
-          }
-          instructions.push({ type: 'decrement', inc, pointer });
-        }
-        break;
       case '>':
-        pointer += 1;
-        while (code[i + 1] === '>') {
-          i++;
-          pointer++;
-        }
-        instructions.push({ type: 'forward', head: pointer });
-        break;
       case '<':
-        pointer -= 1;
-        while (code[i + 1] === '<') {
+        pointer += c === '>' ? 1 : -1;
+        while (['>', '<'].includes(code[i + 1])) {
+          const peek = code[i + 1];
           i++;
-          pointer--;
+          pointer += peek === '>' ? 1 : -1;
         }
-        instructions.push({ type: 'backward', head: pointer });
+        instructions.push({ type: 'move_head', head: pointer });
         break;
       case '[':
         loopStack.push([c, instructions.length]);
@@ -114,16 +101,10 @@ export function executeBrainfuck(code) {
         memory[pointer] = readByte();
         break;
       case 'increment':
-        memory[pointer]++;
+        memory[instruction.pointer] += instruction.inc;
         break;
-      case 'decrement':
-        memory[pointer]--;
-        break;
-      case 'forward':
-        pointer++;
-        break;
-      case 'backward':
-        pointer--;
+      case 'move_head':
+        pointer = instruction.head;
         break;
       case 'begin_loop':
         if (memory[pointer] === 0) {
