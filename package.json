@@ -4,7 +4,8 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "jvm": "node --watch read_jvm_bytecode.js"
   },
   "keywords": [],
   "author": "",
