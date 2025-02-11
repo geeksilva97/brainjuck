@@ -1,4 +1,7 @@
-import fs, { openSync, read } from 'node:fs';
+import fs, { openSync } from 'node:fs';
+
+// instructions
+// https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-6.html#jvms-6.5
 
 function ByteReader(fd) {
   this.fd = fd;
@@ -118,7 +121,6 @@ const superClass = reader.read(2);
 const interfacesCount = reader.read(2);
 // const interfaces = reader.read(2); // since there are no interfaces, we can skip this
 const fieldsCount = bufferToInt(reader.read(2));
-console.log({ fieldsCount })
 
 console.log(`super class =`, constantPool[constantPool[bufferToInt(superClass) - 1].nameIndex - 1].bytes);
 console.log(`this class =`, constantPool[constantPool[bufferToInt(thisClass) - 1].nameIndex - 1].bytes);
@@ -157,6 +159,8 @@ for (let i = 0; i < fieldsCount; i++) {
   }
 }
 
+console.log(reader.position, ' bytes read')
+
 console.log('\n\n------------------------------\n\n');
 const methodsCount = bufferToInt(reader.read(2));
 
@@ -169,12 +173,28 @@ for (let i = 0; i < methodsCount; i++) {
   const attributeLength = bufferToInt(reader.read(4));
   const attributeBytes = reader.read(attributeLength);
 
-  console.log(`Attribute ${i + 1} | nameIndex = `, constantPool[nameIndex - 1].bytes,
-    '\n| descriptorIndex = ', constantPool[descriptorIndex - 1].bytes,
+  // that is how the attribute bytes should be interpreted
+  // https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.3
+  //
+  //  u2 max_stack;
+  //  u2 max_locals;
+  //  u4 code_length;
+  //  u1 code[code_length];
+  //  u2 exception_table_length;
+  //  {   u2 start_pc;
+  //      u2 end_pc;
+  //      u2 handler_pc;
+  //      u2 catch_type;
+  //  } exception_table[exception_table_length];
+  //  u2 attributes_count;
+  //  attribute_info attributes[attributes_count];
+
+  console.log(`Method ${i + 1} | nameIndex = `, constantPool[nameIndex - 1].bytes,
+    '\n| descriptor (aka type) = ', constantPool[descriptorIndex - 1].bytes,
     '\n| attributesCount = ', attributesCount,
-    '\n| attributeNameIndex = ', constantPool[attributeNameIndex - 1].bytes,
+    '\n| attributeName = ', constantPool[attributeNameIndex - 1].bytes,
     '\n| attributeLength = ', attributeLength,
-    '\n| attributeBytes = ', attributeBytes.toString('hex')
+    '\n| attributeBytes (code, actually) = ', attributeBytes.toString('hex')
   )
   console.log()
 }
@@ -203,5 +223,46 @@ for (let i = 0; i < attributesCount; i++) {
     '\n| attributeLength = ', attributeLength,
     '\n| attributeBytes = ', attributeBytes.toString('hex'));
 }
+
+console.log(constantPool[constantPool[19].nameIndex - 1])
+console.log('pushstatic 13', constantPool[constantPool[13].nameIndex - 1].bytes)
+
+// Compiled from "Brainfuck.java"
+// class Brainfuck {
+//   public static java.lang.String message;
+
+//   public static byte[] memory;
+
+//   public static int pointer;
+
+//   Brainfuck();
+//     Code:
+//        0: aload_0
+//        1: invokespecial #1                  // Method java/lang/Object."
+// <init>":()V
+//        4: return
+
+//   public static void main(java.lang.String[]);
+//     Code:
+//        0: getstatic     #7                  // Field java/lang/System.ou
+// t:Ljava/io/PrintStream;
+//        3: getstatic     #13                 // Field message:Ljava/lang/
+// String;
+//        6: invokevirtual #19                 // Method java/io/PrintStrea
+// m.println:(Ljava/lang/String;)V
+//        9: return
+
+//   static {};
+//     Code:
+//        0: ldc           #25                 // String Hello, World!
+//        2: putstatic     #13                 // Field message:Ljava/lang/
+// String;
+//        5: sipush        30000
+//        8: newarray       byte
+//       10: putstatic     #27                 // Field memory:[B
+//       13: iconst_0
+//       14: putstatic     #31                 // Field pointer:I
+//       17: return
+// }
 
 // reader.read(1) // should throw EOF
