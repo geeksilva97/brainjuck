@@ -3,6 +3,23 @@ import fs, { openSync } from 'node:fs';
 // instructions
 // https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-6.html#jvms-6.5
 
+function BufferReader(buffer) {
+  this.buffer = buffer;
+  this.position = 0;
+}
+
+BufferReader.prototype.read = function(size = 1) {
+  const buffer = this.buffer.slice(this.position, this.position + size);
+
+  if (buffer.length === 0) {
+    throw new Error('EOF');
+  }
+
+  this.position += size;
+
+  return buffer;
+}
+
 function ByteReader(fd) {
   this.fd = fd;
   this.position = 0;
@@ -159,10 +176,11 @@ for (let i = 0; i < fieldsCount; i++) {
   }
 }
 
-console.log(reader.position, ' bytes read')
-
 console.log('\n\n------------------------------\n\n');
 const methodsCount = bufferToInt(reader.read(2));
+const clazz = {
+  methods: {},
+};
 
 for (let i = 0; i < methodsCount; i++) {
   const flags = reader.read(2);
@@ -173,6 +191,20 @@ for (let i = 0; i < methodsCount; i++) {
   const attributeLength = bufferToInt(reader.read(4));
   const attributeBytes = reader.read(attributeLength);
 
+  const methodType = constantPool[attributeNameIndex - 1].bytes;
+  if (methodType !== 'Code') {
+    throw `Not implemented attribute ${methodType}`;
+  }
+
+  const methodName = constantPool[nameIndex - 1].bytes;
+  const methodDescriptor = constantPool[descriptorIndex - 1].bytes;
+  const methodCode = attributeBytes;
+
+  clazz.methods[methodName] = {
+    descriptor: methodDescriptor,
+    code: methodCode,
+    codeLength: attributeLength,
+  };
   // that is how the attribute bytes should be interpreted
   // https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.3
   //
@@ -189,17 +221,19 @@ for (let i = 0; i < methodsCount; i++) {
   //  u2 attributes_count;
   //  attribute_info attributes[attributes_count];
 
-  console.log(`Method ${i + 1} | nameIndex = `, constantPool[nameIndex - 1].bytes,
-    '\n| descriptor (aka type) = ', constantPool[descriptorIndex - 1].bytes,
-    '\n| attributesCount = ', attributesCount,
-    '\n| attributeName = ', constantPool[attributeNameIndex - 1].bytes,
-    '\n| attributeLength = ', attributeLength,
-    '\n| attributeBytes (code, actually) = ', attributeBytes.toString('hex')
-  )
-  console.log()
+  // console.log(`Method ${i + 1} | nameIndex = `, constantPool[nameIndex - 1].bytes,
+  //   '\n| descriptor (aka type) = ', constantPool[descriptorIndex - 1].bytes,
+  //   '\n| attributesCount = ', attributesCount,
+  //   '\n| attributeName = ', constantPool[attributeNameIndex - 1].bytes,
+  //   '\n| attributeLength = ', attributeLength,
+  //   '\n| attributeBytes (code, actually) = ', attributeBytes.toString('hex')
+  // )
+  // console.log()
 }
 
 console.log('-----------');
+
+function parseAttributeInfo(attributeBytes) { }
 
 const attributesCount = bufferToInt(reader.read(2));
 for (let i = 0; i < attributesCount; i++) {
@@ -224,45 +258,176 @@ for (let i = 0; i < attributesCount; i++) {
     '\n| attributeBytes = ', attributeBytes.toString('hex'));
 }
 
-console.log(constantPool[constantPool[19].nameIndex - 1])
-console.log('pushstatic 13', constantPool[constantPool[13].nameIndex - 1].bytes)
+const mainMethod = clazz.methods['main'];
+const mainMethodCode = mainMethod.code;
 
-// Compiled from "Brainfuck.java"
-// class Brainfuck {
-//   public static java.lang.String message;
+console.log('\n\n-------------- method main ----------------\n\n');
 
-//   public static byte[] memory;
+function parseCodeAttribute(codeAttribute) {
+  const byteReader = new BufferReader(codeAttribute);
+  const maxStack = bufferToInt(byteReader.read(2));
+  const maxLocals = bufferToInt(byteReader.read(2));
+  const codeLength = bufferToInt(byteReader.read(4));
+  const code = byteReader.read(codeLength);
+  const exceptionTableLength = bufferToInt(byteReader.read(2));
+  const exceptionTable = [];
 
-//   public static int pointer;
+  for (let i = 0; i < exceptionTableLength; i++) {
+    const startPc = bufferToInt(byteReader.read(2));
+    const endPc = bufferToInt(byteReader.read(2));
+    const handlerPc = bufferToInt(byteReader.read(2));
+    const catchType = bufferToInt(byteReader.read(2));
 
-//   Brainfuck();
-//     Code:
-//        0: aload_0
-//        1: invokespecial #1                  // Method java/lang/Object."
-// <init>":()V
-//        4: return
+    exceptionTable.push({ startPc, endPc, handlerPc, catchType });
+  }
 
-//   public static void main(java.lang.String[]);
-//     Code:
-//        0: getstatic     #7                  // Field java/lang/System.ou
-// t:Ljava/io/PrintStream;
-//        3: getstatic     #13                 // Field message:Ljava/lang/
-// String;
-//        6: invokevirtual #19                 // Method java/io/PrintStrea
-// m.println:(Ljava/lang/String;)V
-//        9: return
+  const attributesCountMain = bufferToInt(byteReader.read(2));
+  for (let i = 0; i < attributesCountMain; i++) {
+    const attributeNameIndex = bufferToInt(byteReader.read(2));
+    const attributeLength = bufferToInt(byteReader.read(4));
+    const type = constantPool[attributeNameIndex - 1].bytes;
 
-//   static {};
-//     Code:
-//        0: ldc           #25                 // String Hello, World!
-//        2: putstatic     #13                 // Field message:Ljava/lang/
-// String;
-//        5: sipush        30000
-//        8: newarray       byte
-//       10: putstatic     #27                 // Field memory:[B
-//       13: iconst_0
-//       14: putstatic     #31                 // Field pointer:I
-//       17: return
-// }
 
-// reader.read(1) // should throw EOF
+    if (type === 'LineNumberTable') {
+      const lineNumberTableLength = bufferToInt(byteReader.read(2));
+      const lineNumberTable = [];
+
+      for (let j = 0; j < lineNumberTableLength; j++) {
+        const startPc = bufferToInt(byteReader.read(2));
+        const lineNumber = bufferToInt(byteReader.read(2));
+
+        lineNumberTable.push({ startPc, lineNumber });
+      }
+      console.log({ lineNumberTable })
+
+      // console.log('Attribute ', i + 1, '| attributeNameIndex = ', constantPool[attributeNameIndex - 1].bytes,
+      //   '\n| attributeLength = ', attributeLength,
+      //   '\n| sourceFile = ', sourceFile);
+
+      continue;
+    }
+  }
+
+  return {
+    maxStack,
+    maxLocals,
+    codeLength,
+    code,
+    exceptionTable,
+  };
+}
+
+const opcodes = {
+  0x03: 'iconst_0',
+  0x11: 'sipush',
+  0x12: 'ldc',
+  0x2a: 'aload_0',
+  0xb1: 'return',
+  0xb2: 'getstatic',
+  0xb3: 'putstatic',
+  0xb6: 'invokevirtual',
+  0xb7: 'invokespecial',
+  0xb8: 'invokestatic',
+  0xbc: 'newarray',
+};
+
+function disasembleMethod(methodName, code) {
+  console.log(`Disassembling method ${methodName} ---\ncode: ${code.toString('hex')}\n`);
+
+  const byteCodeReader = new BufferReader(code);
+  while (byteCodeReader.position < code.length) {
+    const byte = byteCodeReader.read();
+    const opcode = opcodes[byte[0]];
+
+    switch (opcode) {
+      case 'aload_0':
+        {
+          console.log('\taload_0');
+        }
+        break;
+
+      case 'invokespecial':
+        {
+          const index = bufferToInt(byteCodeReader.read(2));
+
+          console.log('\tinvokespecial', index);
+        }
+        break;
+
+      case 'iconst_0':
+        console.log('\ticonst_0');
+        break;
+
+      case 'sipush':
+        {
+          const value = bufferToInt(byteCodeReader.read(2));
+
+          console.log('\tsipush', value);
+        }
+        break;
+
+      case 'ldc':
+        {
+          const index = bufferToInt(byteCodeReader.read(1));
+
+          console.log('\tldc', index);
+        }
+        break;
+
+      case 'return':
+        console.log('\treturn');
+        break;
+
+      case 'getstatic':
+        {
+          const index = bufferToInt(byteCodeReader.read(2));
+
+          console.log('\tgetstatic', index);
+        }
+        break;
+
+      case 'putstatic':
+        {
+          const index = bufferToInt(byteCodeReader.read(2));
+
+          console.log('\tputstatic', index);
+        }
+        break;
+
+      case 'invokevirtual':
+        {
+          const index = bufferToInt(byteCodeReader.read(2));
+
+          console.log('\tinvokevirtual', index);
+        }
+        break;
+
+      case 'invokestatic':
+        {
+          const index = bufferToInt(byteCodeReader.read(2));
+
+          console.log('\tinvokestatic', index);
+        }
+        break;
+
+    }
+  }
+}
+
+// class load
+const clinitByteCode = parseCodeAttribute(clazz.methods['<clinit>'].code).code;
+
+// main method
+const mainByteCode = parseCodeAttribute(clazz.methods['main'].code).code;
+
+// constructor
+const initByteCode = parseCodeAttribute(clazz.methods['<init>'].code).code;
+
+console.log()
+console.log()
+disasembleMethod('<clinit>', clinitByteCode);
+console.log()
+disasembleMethod('main', mainByteCode);
+console.log()
+disasembleMethod('<init>', initByteCode);
+
