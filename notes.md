@@ -5,3 +5,22 @@ https://github.com/openjdk/jdk/blob/45b7c748737f38c33c4666d17101b051b2fbe2ae/src
 https://github.com/openjdk/jdk/blob/45b7c748737f38c33c4666d17101b051b2fbe2ae/test/hotspot/jtreg/testlibrary/asm/org/objectweb/asm/commons/InstructionAdapter.java
 
 PrintStream => https://github.com/openjdk/jdk/blob/45b7c748737f38c33c4666d17101b051b2fbe2ae/src/java.base/share/classes/java/io/PrintStream.java#L837
+
+
+A classe prinstream fica num binario precopmilado. usando verbose vemos que a classe vem desse shared
+
+`java -verbose:class Brainfuck`
+
+[0,057s][info][class,load] java.io.PrintStream source: shared objects file
+
+ainda é possivel inspecionala
+
+```
+javap --module java.base java.io.PrintStream
+```
+
+Para encontra a localização do java podemo executar:
+
+```
+/usr/libexec/java_home
+```
