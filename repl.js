@@ -32,7 +32,6 @@ rl.on('line', (code) => {
     return;
   }
 
-
   const { cells, stdoutQueue, currentCell } = execute(code)
 
   storage.cells = cells;

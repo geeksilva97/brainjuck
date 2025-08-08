@@ -89,7 +89,7 @@ export function executeBrainfuck(code) {
   while (true) {
     // fetch
     const instruction = instructions[pc];
-    console.log({ pc, instruction, pointer, pointerContent: memory[pointer] })
+    // console.log({ pc, instruction, pointer, pointerContent: memory[pointer] })
 
     // decode and execute
     switch (instruction.type) {

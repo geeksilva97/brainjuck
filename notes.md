@@ -24,3 +24,8 @@ Para encontra a localização do java podemo executar:
 ```
 /usr/libexec/java_home
 ```
+.class bytecode 
+
+https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html
+
+javap -v Hello - comando para printar byte code com constant pool e tudo
