@@ -1,42 +1,8 @@
-import fs, { openSync } from 'node:fs';
+import fs from 'node:fs';
+import { ByteReader, BufferReader } from './helpers/buffer-reader.js';
 
 // instructions
 // https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-6.html#jvms-6.5
-
-function BufferReader(buffer) {
-  this.buffer = buffer;
-  this.position = 0;
-}
-
-BufferReader.prototype.read = function(size = 1) {
-  const buffer = this.buffer.slice(this.position, this.position + size);
-
-  if (buffer.length === 0) {
-    throw new Error('EOF');
-  }
-
-  this.position += size;
-
-  return buffer;
-}
-
-function ByteReader(fd) {
-  this.fd = fd;
-  this.position = 0;
-}
-
-ByteReader.prototype.read = function(size = 1) {
-  const buffer = Buffer.alloc(size);
-  const bytesRead = fs.readSync(this.fd, buffer, 0, size, this.position);
-
-  if (bytesRead === 0) {
-    throw new Error('EOF');
-  }
-
-  this.position += bytesRead;
-
-  return buffer;
-};
 
 const TAGS = {
   7: ['CONSTANT_Class', 7],
@@ -59,7 +25,8 @@ function bufferToInt(buffer) {
   return parseInt(buffer.toString('hex'), 16);
 }
 
-const fd = fs.openSync('./Brainfuck.class', 'r');
+const className = process.argv[2] || './Brainfuck.class';
+const fd = fs.openSync(className, 'r');
 const reader = new ByteReader(fd);
 
 const magic = reader.read(4);
@@ -131,6 +98,8 @@ for (let i = 1; i <= constantPoolCount - 1; ++i) {
       throw new Error(`Not implemented tag ${tagName}`);
   }
 }
+
+console.table(constantPool)
 
 const accessFlags = reader.read(2);
 const thisClass = reader.read(2);
@@ -362,7 +331,7 @@ function disasembleMethod(methodName, code) {
         {
           const value = bufferToInt(byteCodeReader.read(2));
 
-          console.log('\tsipush', value);
+          console.log('\tsipush', value, ` -- (opcode = 0x${byte[0].toString(16)}) | value = 0x${value.toString(16)})`);
         }
         break;
 
@@ -414,8 +383,12 @@ function disasembleMethod(methodName, code) {
   }
 }
 
+console.log({
+  methods: clazz.methods
+})
+
 // class load
-const clinitByteCode = parseCodeAttribute(clazz.methods['<clinit>'].code).code;
+// const clinitByteCode = parseCodeAttribute(clazz.methods['<clinit>'].code).code;
 
 // main method
 const mainByteCode = parseCodeAttribute(clazz.methods['main'].code).code;
@@ -425,7 +398,7 @@ const initByteCode = parseCodeAttribute(clazz.methods['<init>'].code).code;
 
 console.log()
 console.log()
-disasembleMethod('<clinit>', clinitByteCode);
+// disasembleMethod('<clinit>', clinitByteCode);
 console.log()
 disasembleMethod('main', mainByteCode);
 console.log()

@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 
-class ClassFileGenerator {
+export class ClassFileGenerator {
   constructor() {
     this.buffer = [];
     this.constantPool = [];
@@ -328,25 +328,22 @@ class ClassFileGenerator {
 }
 
 const className = process.argv[2] || 'HelloWorld';
-// Example usage
+// // Example usage
 const generator = new ClassFileGenerator();
 
-// Generate HelloWorld.class
 const helloWorldClass = generator.generateHelloWorldClass(className);
 console.log(`${className}.class generated:`, helloWorldClass.length, 'bytes');
 
 fs.writeFileSync(`${className}.class`, helloWorldClass);
 
-// Generate EmptyClass.class
+// // Generate EmptyClass.class
 // const emptyClass = generator.generateEmptyClass("MyEmptyClass");
 // console.log('MyEmptyClass.class generated:', emptyClass.length, 'bytes');
 
-// Display first 32 bytes in hex for verification
-console.log(`${className}.class header (hex):`);
-console.log(Array.from(helloWorldClass.slice(0, 32))
-  .map(b => '0x' + b.toString(16).padStart(2, '0'))
-  .join(' '));
+// fs.writeFileSync(`MyEmptyClass.class`, emptyClass);
 
-// Uncomment to save files (Node.js only)
-// generator.saveToFile(helloWorldClass, 'HelloWorld.class');
-// generator.saveToFile(emptyClass, 'MyEmptyClass.class');
+// Display first 32 bytes in hex for verification
+// console.log(`${className}.class header (hex):`);
+// console.log(Array.from(helloWorldClass.slice(0, 32))
+//   .map(b => '0x' + b.toString(16).padStart(2, '0'))
+//   .join(' '));

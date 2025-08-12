@@ -42,7 +42,8 @@ export function parseBrainfuck(code) {
         break;
       case '[':
         loopStack.push([c, instructions.length]);
-        instructions.push({ type: 'begin_loop', jmp: -1 });
+        // setting jmp as -1 till the end of loop is reached and the jmp can actually be computed
+        instructions.push({ type: 'jump_eqz', jmp: -1 });
         break;
       case ']':
         {
@@ -52,7 +53,7 @@ export function parseBrainfuck(code) {
           }
 
           instructions[pos].jmp = instructions.length + 1;
-          instructions.push({ type: 'end_loop', jmp: pos + 1 });
+          instructions.push({ type: 'jump_neqz', jmp: pos + 1 });
         }
         break;
     }
@@ -106,13 +107,13 @@ export function executeBrainfuck(code) {
       case 'move_head':
         pointer = instruction.head;
         break;
-      case 'begin_loop':
+      case 'jump_eqz':
         if (memory[pointer] === 0) {
           pc = instruction.jmp;
           continue;
         }
         break;
-      case 'end_loop':
+      case 'jump_neqz':
         if (memory[pointer] !== 0) {
           pc = instruction.jmp;
           continue;
@@ -121,6 +122,8 @@ export function executeBrainfuck(code) {
       case 'halt':
         console.table(memory.slice(0, 10));
         return;
+      default:
+        throw Error(`Unknown instruction ${instruction.type}`);
     }
 
     pc++;
