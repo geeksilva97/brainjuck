@@ -156,23 +156,35 @@ for (let i = 0; i < methodsCount; i++) {
   const nameIndex = bufferToInt(reader.read(2));
   const descriptorIndex = bufferToInt(reader.read(2));
   const attributesCount = bufferToInt(reader.read(2));
-  const attributeNameIndex = bufferToInt(reader.read(2));
-  const attributeLength = bufferToInt(reader.read(4));
-  const attributeBytes = reader.read(attributeLength);
 
+  // Code_attribute stuff
+  const attributeNameIndex = bufferToInt(reader.read(2));
   const methodType = constantPool[attributeNameIndex - 1].bytes;
   if (methodType !== 'Code') {
     throw `Not implemented attribute ${methodType}`;
   }
 
+  const pos = reader.position;
+  const attributeLength = bufferToInt(reader.read(4));
+  const attributeBytes = reader.read(attributeLength);
+
   const methodName = constantPool[nameIndex - 1].bytes;
   const methodDescriptor = constantPool[descriptorIndex - 1].bytes;
   const methodCode = attributeBytes;
 
+  if (methodName === 'main') {
+    console.log('||||| Code_attribute', { methodName, posInHex: '0x' + pos.toString(16), len: '0x' + attributeLength.toString(16) })
+  }
+
   clazz.methods[methodName] = {
+    attributesCount,
+    flags,
     descriptor: methodDescriptor,
     code: methodCode,
     codeLength: attributeLength,
+    attributeLength,
+    // eith bytes (2 for maxStack, 2 for maxLocals and 4 for codeLength)
+    methodCodStartsAt: reader.position - attributeLength + 8
   };
   // that is how the attribute bytes should be interpreted
   // https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.3
@@ -189,27 +201,23 @@ for (let i = 0; i < methodsCount; i++) {
   //  } exception_table[exception_table_length];
   //  u2 attributes_count;
   //  attribute_info attributes[attributes_count];
-
-  // console.log(`Method ${i + 1} | nameIndex = `, constantPool[nameIndex - 1].bytes,
-  //   '\n| descriptor (aka type) = ', constantPool[descriptorIndex - 1].bytes,
-  //   '\n| attributesCount = ', attributesCount,
-  //   '\n| attributeName = ', constantPool[attributeNameIndex - 1].bytes,
-  //   '\n| attributeLength = ', attributeLength,
-  //   '\n| attributeBytes (code, actually) = ', attributeBytes.toString('hex')
-  // )
-  // console.log()
 }
+
+console.log(clazz.methods)
 
 console.log('-----------');
 
 function parseAttributeInfo(attributeBytes) { }
 
 const attributesCount = bufferToInt(reader.read(2));
+console.log({ attributesCount })
+
 for (let i = 0; i < attributesCount; i++) {
   const attributeNameIndex = bufferToInt(reader.read(2));
   const attributeLength = bufferToInt(reader.read(4));
   const attributeBytes = reader.read(attributeLength); // source file index when attributeName is SourceFile
 
+  console.log({ attributeNameIndex, attributeLength, attributeBytes })
 
   if (constantPool[attributeNameIndex - 1].bytes === 'SourceFile') {
     const sourceFileIndex = bufferToInt(attributeBytes);
@@ -227,16 +235,12 @@ for (let i = 0; i < attributesCount; i++) {
     '\n| attributeBytes = ', attributeBytes.toString('hex'));
 }
 
-const mainMethod = clazz.methods['main'];
-const mainMethodCode = mainMethod.code;
-
-console.log('\n\n-------------- method main ----------------\n\n');
-
 function parseCodeAttribute(codeAttribute) {
   const byteReader = new BufferReader(codeAttribute);
   const maxStack = bufferToInt(byteReader.read(2));
   const maxLocals = bufferToInt(byteReader.read(2));
   const codeLength = bufferToInt(byteReader.read(4));
+
   const code = byteReader.read(codeLength);
   const exceptionTableLength = bufferToInt(byteReader.read(2));
   const exceptionTable = [];
@@ -256,7 +260,6 @@ function parseCodeAttribute(codeAttribute) {
     const attributeLength = bufferToInt(byteReader.read(4));
     const type = constantPool[attributeNameIndex - 1].bytes;
 
-
     if (type === 'LineNumberTable') {
       const lineNumberTableLength = bufferToInt(byteReader.read(2));
       const lineNumberTable = [];
@@ -268,10 +271,6 @@ function parseCodeAttribute(codeAttribute) {
         lineNumberTable.push({ startPc, lineNumber });
       }
       console.log({ lineNumberTable })
-
-      // console.log('Attribute ', i + 1, '| attributeNameIndex = ', constantPool[attributeNameIndex - 1].bytes,
-      //   '\n| attributeLength = ', attributeLength,
-      //   '\n| sourceFile = ', sourceFile);
 
       continue;
     }
@@ -288,8 +287,12 @@ function parseCodeAttribute(codeAttribute) {
 
 const opcodes = {
   0x03: 'iconst_0',
+  0xbc: 'newarray',
   0x11: 'sipush',
   0x12: 'ldc',
+  0x4b: 'astore_0',
+  0x4c: 'astore_1',
+  0x4d: 'astore_2',
   0x2a: 'aload_0',
   0xb1: 'return',
   0xb2: 'getstatic',
@@ -300,6 +303,10 @@ const opcodes = {
   0xbc: 'newarray',
 };
 
+const ARRAY_TYPES = {
+  10: 'int'
+};
+
 function disasembleMethod(methodName, code) {
   console.log(`Disassembling method ${methodName} ---\ncode: ${code.toString('hex')}\n`);
 
@@ -307,8 +314,23 @@ function disasembleMethod(methodName, code) {
   while (byteCodeReader.position < code.length) {
     const byte = byteCodeReader.read();
     const opcode = opcodes[byte[0]];
+    // console.log('0x' + byte[0].toString(16))
 
     switch (opcode) {
+      case 'newarray':
+        {
+          // https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-6.html#jvms-6.5.newarray
+          // 10 - integer
+          const arrayType = bufferToInt(byteCodeReader.read(1));
+          console.log('\tnewarray', { type: ARRAY_TYPES[arrayType] || arrayType });
+        }
+        break;
+
+      case 'astore_1':
+        {
+          console.log('\tastore_1');
+        }
+        break;
       case 'aload_0':
         {
           console.log('\taload_0');
@@ -378,7 +400,6 @@ function disasembleMethod(methodName, code) {
           console.log('\tinvokestatic', index);
         }
         break;
-
     }
   }
 }
@@ -387,20 +408,15 @@ console.log({
   methods: clazz.methods
 })
 
-// class load
-// const clinitByteCode = parseCodeAttribute(clazz.methods['<clinit>'].code).code;
 
 // main method
 const mainByteCode = parseCodeAttribute(clazz.methods['main'].code).code;
 
 // constructor
-const initByteCode = parseCodeAttribute(clazz.methods['<init>'].code).code;
+// const initByteCode = parseCodeAttribute(clazz.methods['<init>'].code).code;
 
-console.log()
-console.log()
-// disasembleMethod('<clinit>', clinitByteCode);
 console.log()
 disasembleMethod('main', mainByteCode);
 console.log()
-disasembleMethod('<init>', initByteCode);
+// disasembleMethod('<init>', initByteCode);
 
