@@ -179,21 +179,34 @@ export class ClassFileGenerator {
     const systemClassNameIndex = this.addUtf8Constant("java/lang/System");
     const systemClassIndex = this.addClassConstant(systemClassNameIndex);
 
+    const helloStringIndex = this.addUtf8Constant("Hello, World!");
+    const helloStringConstantIndex = this.addStringConstant(helloStringIndex);
+
     const printStreamClassNameIndex = this.addUtf8Constant("java/io/PrintStream");
     const printStreamClassIndex = this.addClassConstant(printStreamClassNameIndex);
-
     const outFieldNameIndex = this.addUtf8Constant("out");
     const printStreamDescriptorIndex = this.addUtf8Constant("Ljava/io/PrintStream;");
     const outNameAndTypeIndex = this.addNameAndTypeConstant(outFieldNameIndex, printStreamDescriptorIndex);
     const outFieldrefIndex = this.addFieldrefConstant(systemClassIndex, outNameAndTypeIndex);
-
     const printlnNameIndex = this.addUtf8Constant("println");
     const printlnDescriptorIndex = this.addUtf8Constant("(Ljava/lang/String;)V");
     const printlnNameAndTypeIndex = this.addNameAndTypeConstant(printlnNameIndex, printlnDescriptorIndex);
     const printlnMethodrefIndex = this.addMethodrefConstant(printStreamClassIndex, printlnNameAndTypeIndex);
 
-    const helloStringIndex = this.addUtf8Constant("Hello, World!");
-    const helloStringConstantIndex = this.addStringConstant(helloStringIndex);
+    // INPUT
+
+    const inputStreamClassNameIndex = this.addUtf8Constant("java/io/InputStream");
+    const inputStreamClassIndex = this.addClassConstant(inputStreamClassNameIndex);
+    const inFieldNameIndex = this.addUtf8Constant("in");
+    const inputStreamDescriptorIndex = this.addUtf8Constant("Ljava/io/InputStream;");
+    const inNameAndTypeIndex = this.addNameAndTypeConstant(inFieldNameIndex, inputStreamDescriptorIndex);
+    const inFieldrefIndex = this.addFieldrefConstant(systemClassIndex, inNameAndTypeIndex);
+    const readNameIndex = this.addUtf8Constant("read");
+    const readDescriptorIndex = this.addUtf8Constant("(Ljava/lang/String;)V");
+    const readNameAndTypeIndex = this.addNameAndTypeConstant(readNameIndex, readDescriptorIndex);
+    const readMethodrefIndex = this.addMethodrefConstant(inputStreamClassIndex, readNameAndTypeIndex);
+
+    // INPUT
 
     const mainNameIndex = this.addUtf8Constant("main");
     const mainDescriptorIndex = this.addUtf8Constant("([Ljava/lang/String;)V");
