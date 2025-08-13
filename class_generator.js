@@ -163,7 +163,7 @@ export class ClassFileGenerator {
   }
 
   // Generate a simple "Hello World" class
-  generateHelloWorldClass(className = 'HelloWorld', jvmInstructions = []) {
+  generateHelloWorldClass(className = 'HelloWorld', makeInstructions = () => []) {
     // Reset buffer and constants
     this.buffer = [];
     this.constantPool = [];
@@ -202,7 +202,7 @@ export class ClassFileGenerator {
     const inNameAndTypeIndex = this.addNameAndTypeConstant(inFieldNameIndex, inputStreamDescriptorIndex);
     const inFieldrefIndex = this.addFieldrefConstant(systemClassIndex, inNameAndTypeIndex);
     const readNameIndex = this.addUtf8Constant("read");
-    const readDescriptorIndex = this.addUtf8Constant("(Ljava/lang/String;)V");
+    const readDescriptorIndex = this.addUtf8Constant("()I");
     const readNameAndTypeIndex = this.addNameAndTypeConstant(readNameIndex, readDescriptorIndex);
     const readMethodrefIndex = this.addMethodrefConstant(inputStreamClassIndex, readNameAndTypeIndex);
 
@@ -216,6 +216,23 @@ export class ClassFileGenerator {
     const constructorDescriptorIndex = this.addUtf8Constant("()V");
     const constructorNameAndTypeIndex = this.addNameAndTypeConstant(constructorNameIndex, constructorDescriptorIndex);
     const constructorMethodrefIndex = this.addMethodrefConstant(objectClassIndex, constructorNameAndTypeIndex);
+
+    const symbolicConstantPool = {
+      input: {
+        classNameIndex: inputStreamClassNameIndex,
+        classIndex: inputStreamClassIndex,
+        fieldNameIndex: inFieldNameIndex,
+        descriptorIndex: inputStreamDescriptorIndex,
+        nameAndTypeIndex: inNameAndTypeIndex,
+        fieldRef: inFieldrefIndex,
+        readNameIndex,
+        readDescriptorIndex,
+        readNameAndTypeIndex,
+        readMethodrefIndex
+      }
+    };
+
+    const jvmInstructions = makeInstructions({ constantPool: this.constantPool, symbolicConstantPool });
 
     // Write ClassFile structure
 
@@ -292,6 +309,7 @@ export class ClassFileGenerator {
     // this.writeU2(printlnMethodrefIndex);
 
     // this.writeU1(0xB1); // return
+
     this.writeU2(0); // exception_table_length
     this.writeU2(0); // attributes_count
 
@@ -318,11 +336,6 @@ function intTo2Bytes(num) {
   return [(num >> 8) & 0xFF, num & 0xFF];
 }
 
-const variableNames = {
-  cells: '1',
-  head: '2'
-};
-
 const move_head = (h) => {
   return []
     .concat([0x11, ...intTo2Bytes(h)]) // sipush 10
@@ -343,19 +356,38 @@ const increment = (n) => {
     ;
 };
 
-const jvmInstructions = [
-  ...[0x11, ...intTo2Bytes(30_000)], // sipush 30000
-  ...[0xbc, 0x08], // newarray byte
-  ...[0x4c], // astore_1 (cells)
-  ...[0x03], // iconst_0
-  ...[0x3d], // istore_2 (head)
-  ...increment(100),
-  0xb1 // return
-];
+const input = ({ fieldRef, methodRef }) => {
+  const getStatic = [0xb2, ...intTo2Bytes(fieldRef)];
+  const invokeVirtual = [0xb6, ...intTo2Bytes(methodRef)];
+  return [
+    ...getStatic,
+    ...invokeVirtual
+  ]
+};
 
+const makeJVMInstructions = ({
+  constantPool,
+  symbolicConstantPool
+}) => {
+  const readInput = Buffer.from(input({
+    fieldRef: symbolicConstantPool.input.fieldRef, 
+    methodRef: symbolicConstantPool.input.readMethodrefIndex
+  }));
+
+  return [
+    ...[0x11, ...intTo2Bytes(30_000)], // sipush 30000
+    ...[0xbc, 0x08], // newarray byte
+    ...[0x4c], // astore_1 (cells)
+    ...[0x03], // iconst_0
+    ...[0x3d], // istore_2 (head)
+    ...readInput,
+    // ...increment(100),
+    0xb1 // return
+  ];
+};
 
 const className = process.argv[2] || 'HelloWorld';
 const generator = new ClassFileGenerator();
-const helloWorldClass = generator.generateHelloWorldClass(className, jvmInstructions);
+const helloWorldClass = generator.generateHelloWorldClass(className, makeJVMInstructions);
 console.log(`${className}.class generated:`, helloWorldClass.length, 'bytes');
 fs.writeFileSync(`${className}.class`, helloWorldClass);

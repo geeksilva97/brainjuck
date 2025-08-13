@@ -265,3 +265,25 @@ Just learned if i compile with `javac -g:vars BrainfuckProgram.java` it adds the
                 8      37     2 pointer   I
 
 Indeed, args ocuppies slot 0
+
+
+---
+
+Got this error
+
+    Error: Unable to initialize main class CompiledBrainfuck
+    Caused by: java.lang.VerifyError: Bad type on operand stack
+    Exception Details:
+    Location:
+        CompiledBrainfuck.main([Ljava/lang/String;)V @11: invokevirtual
+    Reason:
+        Type 'java/io/InputStream' (current frame, stack[0]) is not assignable to 'java/lang/String'
+    Current Frame:
+        bci: @11
+        flags: { }
+        locals: { '[Ljava/lang/String;', '[B', integer }
+        stack: { 'java/io/InputStream' }
+    Bytecode:
+        0000000: 1175 30bc 084c 033d b200 18b6 001b b1
+
+The descriptor of the read method is incorrect. It should be `()I`
