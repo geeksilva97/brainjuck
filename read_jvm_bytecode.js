@@ -151,7 +151,7 @@ const asHex = (n) => {
 
 /**
  * @param {BufferReader} reader
- * @returns {Array<{ line_number: number; start_pc: number; }>}
+ * @returns {Array<{ maxStack: number; maxLocals: number; codeLength: number; codeFirstByteAt: number; code: Buffer; exceptionTableLength: number; attributes: Array<any> }>}
  */
 function parseCodeAttribute2(reader) {
   // Code_attribute {
@@ -175,6 +175,7 @@ function parseCodeAttribute2(reader) {
   const maxStack = bufferToInt(reader.read(2));
   const maxLocals = bufferToInt(reader.read(2));
   const codeLength = bufferToInt(reader.read(4));
+  const codeFirstByteAt = reader.position;
   const actualCode = reader.read(codeLength);
   const exceptionTableLength = bufferToInt(reader.read(2));
   reader.read(exceptionTableLength);
@@ -185,6 +186,7 @@ function parseCodeAttribute2(reader) {
     maxStack,
     maxLocals,
     codeLength,
+    codeFirstByteAt,
     code: actualCode,
     exceptionTableLength,
     attributes: attrs
@@ -243,8 +245,8 @@ function parseAttributes(reader, attrCount) {
   for (let i = 0; i < attrCount; i++) {
     const attributeNameIndex = bufferToInt(reader.read(2));
     const attributeLength = bufferToInt(reader.read(4));
+    const attributePosition = reader.position;
     const attributeBytes = reader.read(attributeLength);
-
     const attributeName = constantPool[attributeNameIndex - 1].bytes;
 
     const currentAttr = {
@@ -252,6 +254,7 @@ function parseAttributes(reader, attrCount) {
       resolvedName: attributeName,
       length: attributeLength,
       bytes: attributeBytes,
+      attributePosition,
       data: {}
     };
 
@@ -337,6 +340,10 @@ function disasembleMethod(methodName) {
   if (!methodCodeAttr) throw `Could not find a Code attribute in the method ${methodName}`;
 
   console.log(`\n---------- Disasembling method "${methodName}" ---------\n`);
+
+  if (methodName === 'main') {
+    console.log(methodCodeAttr)
+  }
 
   const code = methodCodeAttr.data.code;
   const byteCodeReader = new BufferReader(code);
@@ -445,5 +452,5 @@ console.table(constantPool.reduce((acc, current, index) => {
   return acc;
 }, {}));
 
-disasembleMethod('<init>');
+// disasembleMethod('<init>');
 disasembleMethod('main');

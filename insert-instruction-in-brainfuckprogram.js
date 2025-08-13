@@ -15,8 +15,8 @@ const currentLength = fileData.readUInt32BE(270);
 const newLength = currentLength + 3;
 fileData.writeUInt32BE(newLength, 270);
 
-const before = fileData.slice(0, 274);
-const after = fileData.slice(274);
+const before = fileData.subarray(0, 274);
+const after = fileData.subarray(274);
 
 // New instructions: bipush 42, pop
 const newInstructions = Buffer.from([0x10, 0x2A, 0x57]);

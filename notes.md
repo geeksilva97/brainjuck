@@ -117,5 +117,93 @@ In the modified it is
 }
 ```
 
-
 hmmmm i need to update `codeLength` too. in both it is 117 but i think in the `modified` it should be 120??
+    in fact i needed to adjust the Code `attributeLength` as well, not only codeLength
+
+---
+
+got such a nice idea from chatgpt 
+
+first, the parts of the jvm cod
+
+### memory allocation
+
+```
+sipush 30000   // push size
+newarray byte  // create new byte[]
+astore_1       // store in local var 1 (we'll call this memory)
+iconst_0       // push int 0
+istore_2       // store in local var 2 (we'll call this head/cell index)
+```
+
+`local_1` will be our memory and `local_2` will be the head
+
+### increment n
+
+```
+aload_1         // load memory array
+iload_2         // load cell index
+dup2            // duplicate (arrayref, index) because iaload consumes both
+baload          // load byte value (sign-extended to int)
+sipush n        // push n (or bipush/sipush for larger n)
+iadd            // add
+i2b             // convert back to byte
+bastore         // store back into array
+```
+
+### move_head h
+
+```
+sipush h   // or bipush h, sipush h
+istore_2   // stores in head (local_2)
+```
+
+### jump_eqz pc
+
+```
+aload_1
+iload_2
+baload
+ifeq <target_pc>
+```
+
+### jump_neqz pc
+
+```
+aload_1 // loading array reference (local_1)
+iload_2 // loading head (local_2)
+baload // get valye from cells[head]
+ifeq <target_pc> // is zero, goes to the target_pc instruction
+```
+
+### input
+
+```
+getstatic java/lang/System/in Ljava/io/InputStream;
+invokevirtual java/io/InputStream/read()I
+i2b
+aload_1
+iload_2
+swap
+bastore
+```
+
+aload_1 comes before iload_2 because bastore needs the following structure on the stack:
+
+    arrayref
+    index
+    value
+
+that's also why it has a swap
+
+actually... i think don't need the swap at all
+
+### output
+
+```
+getstatic java/lang/System/out Ljava/io/PrintStream;
+aload_1
+iload_2
+baload
+invokevirtual java/io/PrintStream/print(I)V
+```
