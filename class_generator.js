@@ -262,53 +262,23 @@ export class ClassFileGenerator {
 
     // Main Code attribute
     this.writeU2(codeNameIndex); // attribute_name_index
-    this.writeU4(21); // attribute_length
+    this.writeU4(13); // attribute_length
     this.writeU2(2); // max_stack
     this.writeU2(1); // max_locals
-    this.writeU4(9); // code_length
+    this.writeU4(1); // code_length
+
     // Main bytecode: getstatic System.out, ldc "Hello, World!", invokevirtual println, return
-    this.writeU1(0xB2); // getstatic
-    this.writeU2(outFieldrefIndex);
-    this.writeU1(0x12); // ldc
-    this.writeU1(helloStringConstantIndex);
-    this.writeU1(0xB6); // invokevirtual
-    this.writeU2(printlnMethodrefIndex);
+    // this.writeU1(0xB2); // getstatic
+    // this.writeU2(outFieldrefIndex);
+    // this.writeU1(0x12); // ldc
+    // this.writeU1(helloStringConstantIndex);
+    // this.writeU1(0xB6); // invokevirtual
+    // this.writeU2(printlnMethodrefIndex);
     this.writeU1(0xB1); // return
     this.writeU2(0); // exception_table_length
     this.writeU2(0); // attributes_count
 
     // Class attributes
-    this.writeU2(0); // attributes_count
-
-    return new Uint8Array(this.buffer);
-  }
-
-  // Generate a minimal empty class
-  generateEmptyClass(className = "EmptyClass") {
-    this.buffer = [];
-    this.constantPool = [];
-    this.constantPoolMap.clear();
-
-    // Add required constants for minimal class
-    const objectClassNameIndex = this.addUtf8Constant("java/lang/Object");
-    const objectClassIndex = this.addClassConstant(objectClassNameIndex);
-
-    const classNameIndex = this.addUtf8Constant(className);
-    const thisClassIndex = this.addClassConstant(classNameIndex);
-
-    // Write ClassFile structure
-    this.writeU4(0xCAFEBABE); // magic
-    this.writeU2(0); // minor_version
-    this.writeU2(52); // major_version (Java 8)
-
-    this.writeConstantPool();
-
-    this.writeU2(0x0021); // access_flags (ACC_PUBLIC | ACC_SUPER)
-    this.writeU2(thisClassIndex); // this_class
-    this.writeU2(objectClassIndex); // super_class
-    this.writeU2(0); // interfaces_count
-    this.writeU2(0); // fields_count
-    this.writeU2(0); // methods_count
     this.writeU2(0); // attributes_count
 
     return new Uint8Array(this.buffer);
@@ -328,22 +298,7 @@ export class ClassFileGenerator {
 }
 
 const className = process.argv[2] || 'HelloWorld';
-// // Example usage
 const generator = new ClassFileGenerator();
-
 const helloWorldClass = generator.generateHelloWorldClass(className);
 console.log(`${className}.class generated:`, helloWorldClass.length, 'bytes');
-
 fs.writeFileSync(`${className}.class`, helloWorldClass);
-
-// // Generate EmptyClass.class
-// const emptyClass = generator.generateEmptyClass("MyEmptyClass");
-// console.log('MyEmptyClass.class generated:', emptyClass.length, 'bytes');
-
-// fs.writeFileSync(`MyEmptyClass.class`, emptyClass);
-
-// Display first 32 bytes in hex for verification
-// console.log(`${className}.class header (hex):`);
-// console.log(Array.from(helloWorldClass.slice(0, 32))
-//   .map(b => '0x' + b.toString(16).padStart(2, '0'))
-//   .join(' '));

@@ -440,7 +440,7 @@ function disasembleMethod(methodName) {
 }
 
 const sourceFileAttribute = classAttributes.find(attr => attr.resolvedName === 'SourceFile');
-const sourceFilename = constantPool[sourceFileAttribute.data - 1];
+const sourceFilename = sourceFileAttribute ? constantPool[sourceFileAttribute.data - 1] : { bytes: '(none)' };
 
 console.log();
 console.log('filename', sourceFilename.bytes);
