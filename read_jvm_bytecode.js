@@ -1,9 +1,6 @@
 import fs from 'node:fs';
 import { ByteReader, BufferReader } from './helpers/buffer-reader.js';
 
-// instructions
-// https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-6.html#jvms-6.5
-
 const TAGS = {
   7: ['CONSTANT_Class', 7],
   9: ['CONSTANT_Fieldref', 9],
@@ -99,17 +96,12 @@ for (let i = 1; i <= constantPoolCount - 1; ++i) {
   }
 }
 
-console.table(constantPool)
-
 const accessFlags = reader.read(2);
 const thisClass = reader.read(2);
 const superClass = reader.read(2);
 const interfacesCount = reader.read(2);
 // const interfaces = reader.read(2); // since there are no interfaces, we can skip this
 const fieldsCount = bufferToInt(reader.read(2));
-
-console.log(`super class =`, constantPool[constantPool[bufferToInt(superClass) - 1].nameIndex - 1].bytes);
-console.log(`this class =`, constantPool[constantPool[bufferToInt(thisClass) - 1].nameIndex - 1].bytes);
 
 for (let i = 0; i < fieldsCount; i++) {
   const accessFlags = bufferToInt(reader.read(2));
@@ -145,11 +137,152 @@ for (let i = 0; i < fieldsCount; i++) {
   }
 }
 
-console.log('\n\n------------------------------\n\n');
 const methodsCount = bufferToInt(reader.read(2));
 const clazz = {
   methods: {},
 };
+
+const asHex = (n) => {
+  if (n instanceof Buffer) {
+    return `0x${n.toString('hex')}`;
+  }
+  return '0x' + n.toString(16);
+};
+
+/**
+ * @param {BufferReader} reader
+ * @returns {Array<{ line_number: number; start_pc: number; }>}
+ */
+function parseCodeAttribute2(reader) {
+  // Code_attribute {
+  //     u2 attribute_name_index;
+  //     u4 attribute_length;
+  //     u2 max_stack;
+  //     u2 max_locals;
+  //     u4 code_length;
+  //     u1 code[code_length];
+  //     u2 exception_table_length;
+  //     {   u2 start_pc;
+  //         u2 end_pc;
+  //         u2 handler_pc;
+  //         u2 catch_type;
+  //     } exception_table[exception_table_length];
+  //     u2 attributes_count;
+  //     attribute_info attributes[attributes_count];
+  // }
+  // the first six bytes were consumed in the parseAttributes already
+
+  const maxStack = bufferToInt(reader.read(2));
+  const maxLocals = bufferToInt(reader.read(2));
+  const codeLength = bufferToInt(reader.read(4));
+  const actualCode = reader.read(codeLength);
+  const exceptionTableLength = bufferToInt(reader.read(2));
+  reader.read(exceptionTableLength);
+  const codeAttributesCount = bufferToInt(reader.read(2));
+  const attrs = parseAttributes(reader, codeAttributesCount);
+
+  return {
+    maxStack,
+    maxLocals,
+    codeLength,
+    code: actualCode,
+    exceptionTableLength,
+    attributes: attrs
+  };
+}
+
+/**
+ * @param {BufferReader} reader
+ * @returns {number}
+ */
+function parseSourceFileAttribute(reader) {
+  // SourceFile_attribute {
+  //     u2 attribute_name_index;
+  //     u4 attribute_length;
+  //     u2 sourcefile_index;
+  // }
+  // the first six bytes were consumed in the parseAttributes already
+  return bufferToInt(reader.read(2));
+}
+
+/**
+ * @param {BufferReader} reader
+ * @returns {Array<{ line_number: number; start_pc: number; }>}
+ */
+function parseLineNumberTableAttribute(reader) {
+  // LineNumberTable_attribute {
+  //     u2 attribute_name_index;
+  //     u4 attribute_length;
+  //     u2 line_number_table_length;
+  //     {   u2 start_pc;
+  //         u2 line_number;	
+  //     } line_number_table[line_number_table_length];
+  // }
+  // the first six bytes were consumed in the parseAttributes already
+  const lineNumberTableLength = bufferToInt(reader.read(2));
+
+  const lineNumberTable = [];
+  for (let i = 0; i < lineNumberTableLength; ++i) {
+    const start_pc = bufferToInt(reader.read(2));
+    const line_number = bufferToInt(reader.read(2));
+
+    lineNumberTable.push({ line_number, start_pc })
+  }
+
+  return lineNumberTable;
+}
+
+/**
+ * @type
+ * @param {number} attrCount
+ * @param {BufferReader} reader
+ * @returns {Array<{ nameIndex: number; resolvedName: string; length: number; bytes: Buffer; attributes: Array<any> }>}
+ */
+function parseAttributes(reader, attrCount) {
+  const attrs = [];
+  for (let i = 0; i < attrCount; i++) {
+    const attributeNameIndex = bufferToInt(reader.read(2));
+    const attributeLength = bufferToInt(reader.read(4));
+    const attributeBytes = reader.read(attributeLength);
+
+    const attributeName = constantPool[attributeNameIndex - 1].bytes;
+
+    const currentAttr = {
+      nameIndex: attributeNameIndex,
+      resolvedName: attributeName,
+      length: attributeLength,
+      bytes: attributeBytes,
+      data: {}
+    };
+
+    switch (attributeName) {
+      case 'Code':
+        currentAttr.data = parseCodeAttribute2(
+          new BufferReader(attributeBytes, false)
+        );
+        break;
+
+      case 'LineNumberTable':
+        currentAttr.data = parseLineNumberTableAttribute(
+          new BufferReader(attributeBytes)
+        );
+        break;
+      case 'SourceFile':
+        currentAttr.data = parseSourceFileAttribute(
+          new BufferReader(attributeBytes)
+        );
+        break;
+      default:
+        console.warn(`Unable to parse attribute of kind ${attributeName}`);
+        continue;
+      // throw `Unable to parse attribute of kind ${attributeName}`;
+    }
+
+    attrs.push(currentAttr);
+  }
+
+  return attrs;
+}
 
 for (let i = 0; i < methodsCount; i++) {
   const flags = reader.read(2);
@@ -157,133 +290,21 @@ for (let i = 0; i < methodsCount; i++) {
   const descriptorIndex = bufferToInt(reader.read(2));
   const attributesCount = bufferToInt(reader.read(2));
 
-  // Code_attribute stuff
-  const attributeNameIndex = bufferToInt(reader.read(2));
-  const methodType = constantPool[attributeNameIndex - 1].bytes;
-  if (methodType !== 'Code') {
-    throw `Not implemented attribute ${methodType}`;
-  }
-
-  const pos = reader.position;
-  const attributeLength = bufferToInt(reader.read(4));
-  const attributeBytes = reader.read(attributeLength);
-
   const methodName = constantPool[nameIndex - 1].bytes;
-  const methodDescriptor = constantPool[descriptorIndex - 1].bytes;
-  const methodCode = attributeBytes;
-
-  if (methodName === 'main') {
-    console.log('||||| Code_attribute', { methodName, posInHex: '0x' + pos.toString(16), len: '0x' + attributeLength.toString(16) })
-  }
+  const attrs = parseAttributes(reader, attributesCount);
 
   clazz.methods[methodName] = {
+    nameIndex,
     attributesCount,
+    descriptorIndex,
+    resolvedDescriptor: constantPool[descriptorIndex - 1].bytes,
     flags,
-    descriptor: methodDescriptor,
-    code: methodCode,
-    codeLength: attributeLength,
-    attributeLength,
-    // eith bytes (2 for maxStack, 2 for maxLocals and 4 for codeLength)
-    methodCodStartsAt: reader.position - attributeLength + 8
-  };
-  // that is how the attribute bytes should be interpreted
-  // https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.3
-  //
-  //  u2 max_stack;
-  //  u2 max_locals;
-  //  u4 code_length;
-  //  u1 code[code_length];
-  //  u2 exception_table_length;
-  //  {   u2 start_pc;
-  //      u2 end_pc;
-  //      u2 handler_pc;
-  //      u2 catch_type;
-  //  } exception_table[exception_table_length];
-  //  u2 attributes_count;
-  //  attribute_info attributes[attributes_count];
-}
-
-console.log(clazz.methods)
-
-console.log('-----------');
-
-function parseAttributeInfo(attributeBytes) { }
-
-const attributesCount = bufferToInt(reader.read(2));
-console.log({ attributesCount })
-
-for (let i = 0; i < attributesCount; i++) {
-  const attributeNameIndex = bufferToInt(reader.read(2));
-  const attributeLength = bufferToInt(reader.read(4));
-  const attributeBytes = reader.read(attributeLength); // source file index when attributeName is SourceFile
-
-  console.log({ attributeNameIndex, attributeLength, attributeBytes })
-
-  if (constantPool[attributeNameIndex - 1].bytes === 'SourceFile') {
-    const sourceFileIndex = bufferToInt(attributeBytes);
-    const sourceFile = constantPool[sourceFileIndex - 1].bytes;
-
-    console.log('Attribute ', i + 1, '| attributeNameIndex = ', constantPool[attributeNameIndex - 1].bytes,
-      '\n| attributeLength = ', attributeLength,
-      '\n| sourceFile = ', sourceFile);
-
-    continue;
-  }
-
-  console.log('Attribute ', i + 1, '| attributeNameIndex = ', constantPool[attributeNameIndex - 1].bytes,
-    '\n| attributeLength = ', attributeLength,
-    '\n| attributeBytes = ', attributeBytes.toString('hex'));
-}
-
-function parseCodeAttribute(codeAttribute) {
-  const byteReader = new BufferReader(codeAttribute);
-  const maxStack = bufferToInt(byteReader.read(2));
-  const maxLocals = bufferToInt(byteReader.read(2));
-  const codeLength = bufferToInt(byteReader.read(4));
-
-  const code = byteReader.read(codeLength);
-  const exceptionTableLength = bufferToInt(byteReader.read(2));
-  const exceptionTable = [];
-
-  for (let i = 0; i < exceptionTableLength; i++) {
-    const startPc = bufferToInt(byteReader.read(2));
-    const endPc = bufferToInt(byteReader.read(2));
-    const handlerPc = bufferToInt(byteReader.read(2));
-    const catchType = bufferToInt(byteReader.read(2));
-
-    exceptionTable.push({ startPc, endPc, handlerPc, catchType });
-  }
-
-  const attributesCountMain = bufferToInt(byteReader.read(2));
-  for (let i = 0; i < attributesCountMain; i++) {
-    const attributeNameIndex = bufferToInt(byteReader.read(2));
-    const attributeLength = bufferToInt(byteReader.read(4));
-    const type = constantPool[attributeNameIndex - 1].bytes;
-
-    if (type === 'LineNumberTable') {
-      const lineNumberTableLength = bufferToInt(byteReader.read(2));
-      const lineNumberTable = [];
-
-      for (let j = 0; j < lineNumberTableLength; j++) {
-        const startPc = bufferToInt(byteReader.read(2));
-        const lineNumber = bufferToInt(byteReader.read(2));
-
-        lineNumberTable.push({ startPc, lineNumber });
-      }
-      console.log({ lineNumberTable })
-
-      continue;
-    }
-  }
-
-  return {
-    maxStack,
-    maxLocals,
-    codeLength,
-    code,
-    exceptionTable,
+    attributes: attrs
   };
 }
+
+const classAttributesCount = bufferToInt(reader.read(2));
+const classAttributes = parseAttributes(reader, classAttributesCount);
 
 const opcodes = {
   0x03: 'iconst_0',
@@ -307,14 +328,21 @@ const ARRAY_TYPES = {
   10: 'int'
 };
 
-function disasembleMethod(methodName, code) {
-  console.log(`Disassembling method ${methodName} ---\ncode: ${code.toString('hex')}\n`);
+function disasembleMethod(methodName) {
+  const method = clazz.methods[methodName];
+  if (!method) throw 'method not found';
 
+  const methodCodeAttr = method.attributes.find(attr => attr.resolvedName === 'Code');
+
+  if (!methodCodeAttr) throw `Could not find a Code attribute in the method ${methodName}`;
+
+  console.log(`\n---------- Disasembling method "${methodName}" ---------\n`);
+
+  const code = methodCodeAttr.data.code;
   const byteCodeReader = new BufferReader(code);
   while (byteCodeReader.position < code.length) {
     const byte = byteCodeReader.read();
     const opcode = opcodes[byte[0]];
-    // console.log('0x' + byte[0].toString(16))
 
     switch (opcode) {
       case 'newarray':
@@ -353,7 +381,7 @@ function disasembleMethod(methodName, code) {
         {
           const value = bufferToInt(byteCodeReader.read(2));
 
-          console.log('\tsipush', value, ` -- (opcode = 0x${byte[0].toString(16)}) | value = 0x${value.toString(16)})`);
+          console.log('\tsipush', value, ` (opcode = 0x${byte[0].toString(16)}; value = 0x${value.toString(16)})`);
         }
         break;
 
@@ -404,19 +432,18 @@ function disasembleMethod(methodName, code) {
   }
 }
 
-console.log({
-  methods: clazz.methods
-})
+const sourceFileAttribute = classAttributes.find(attr => attr.resolvedName === 'SourceFile');
+const sourceFilename = constantPool[sourceFileAttribute.data - 1];
 
+console.log();
+console.log('filename', sourceFilename.bytes);
+console.log(`super class =`, constantPool[constantPool[bufferToInt(superClass) - 1].nameIndex - 1].bytes);
+console.log(`this class =`, constantPool[constantPool[bufferToInt(thisClass) - 1].nameIndex - 1].bytes);
 
-// main method
-const mainByteCode = parseCodeAttribute(clazz.methods['main'].code).code;
+console.table(constantPool.reduce((acc, current, index) => {
+  acc[index + 1] = current;
+  return acc;
+}, {}));
 
-// constructor
-// const initByteCode = parseCodeAttribute(clazz.methods['<init>'].code).code;
-
-console.log()
-disasembleMethod('main', mainByteCode);
-console.log()
-// disasembleMethod('<init>', initByteCode);
-
+disasembleMethod('<init>');
+disasembleMethod('main');
