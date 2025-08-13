@@ -207,3 +207,61 @@ iload_2
 baload
 invokevirtual java/io/PrintStream/print(I)V
 ```
+
+
+---
+
+I was able to update the class--generator and add code to it.
+
+but when running:
+
+    java CompiledBrainfuck
+    Error: Unable to initialize main class CompiledBrainfuck
+    Caused by: java.lang.VerifyError: Local variable table overflow
+    Exception Details:
+    Location:
+        CompiledBrainfuck.main([Ljava/lang/String;)V @5: astore_1
+    Reason:
+        Local index 1 is invalid
+    Bytecode:
+        0000000: 1175 30bc 084c 033d b1
+
+I think it's due to the locals, so far it's it 1 but i am creating two variables.
+
+yes, i increased `locals` to `4` and it worked (i think 2 is good enough, need to check)
+
+
+I could reduce it to 2 since I only have two variables. 
+
+I made some experiments with the same index like (`istore_0` and `aload_0`)
+
+    Caused by: java.lang.VerifyError: Bad type on operand stack
+    Exception Details:
+    Location:
+        CompiledBrainfuck.main([Ljava/lang/String;)V @7: astore
+    Reason:
+        Type integer (current frame, stack[0]) is not assignable to reference type
+    Current Frame:
+        bci: @7
+        flags: { }
+        locals: { '[B' }
+        stack: { integer }
+    Bytecode:
+        0000000: 1175 30bc 084b 033a b1
+
+I guess this is because I am trying to save something of a different type in the same slot
+
+slot 0 has an array and I am now trying to store an integer
+
+I had to turn it back to astore_1 and istore_2. Seems like the slot 0 is for method args
+
+
+Just learned if i compile with `javac -g:vars BrainfuckProgram.java` it adds the LocalVariableTable attribute
+
+    LocalVariableTable:
+            Start  Length  Slot  Name   Signature
+                0      45     0  args   [Ljava/lang/String;
+                6      39     1 cells   [I
+                8      37     2 pointer   I
+
+Indeed, args ocuppies slot 0

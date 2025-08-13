@@ -163,7 +163,7 @@ export class ClassFileGenerator {
   }
 
   // Generate a simple "Hello World" class
-  generateHelloWorldClass(className = 'HelloWorld') {
+  generateHelloWorldClass(className = 'HelloWorld', jvmInstructions = []) {
     // Reset buffer and constants
     this.buffer = [];
     this.constantPool = [];
@@ -261,11 +261,14 @@ export class ClassFileGenerator {
     this.writeU2(1); // attributes_count
 
     // Main Code attribute
+    // Code attribute base size is 12 (u2 + u2 + u4 + u2 + u2)
+    const CODE_ATTR_BASE_SIZE = 12;
     this.writeU2(codeNameIndex); // attribute_name_index
-    this.writeU4(13); // attribute_length
-    this.writeU2(2); // max_stack
-    this.writeU2(1); // max_locals
-    this.writeU4(1); // code_length
+    this.writeU4(CODE_ATTR_BASE_SIZE + jvmInstructions.length); // attribute_length
+    this.writeU2(4); // max_stack
+    this.writeU2(3); // max_locals
+    this.writeU4(jvmInstructions.length); // code_length
+    this.writeBytes(jvmInstructions);
 
     // Main bytecode: getstatic System.out, ldc "Hello, World!", invokevirtual println, return
     // this.writeU1(0xB2); // getstatic
@@ -274,7 +277,8 @@ export class ClassFileGenerator {
     // this.writeU1(helloStringConstantIndex);
     // this.writeU1(0xB6); // invokevirtual
     // this.writeU2(printlnMethodrefIndex);
-    this.writeU1(0xB1); // return
+
+    // this.writeU1(0xB1); // return
     this.writeU2(0); // exception_table_length
     this.writeU2(0); // attributes_count
 
@@ -297,8 +301,48 @@ export class ClassFileGenerator {
   }
 }
 
+function intTo2Bytes(num) {
+  return [(num >> 8) & 0xFF, num & 0xFF];
+}
+
+const variableNames = {
+  cells: '1',
+  head: '2'
+};
+
+const move_head = (h) => {
+  return []
+    .concat([0x11, ...intTo2Bytes(h)]) // sipush 10
+    .concat([0x3d]) // istore_2 (storing in head)
+    ;
+};
+
+const increment = (n) => {
+  return []
+    .concat([0x2b]) // aload_1
+    .concat([0x1c]) // iload_2
+    .concat([0x5c]) // dup2
+    .concat([0x33]) // baload
+    .concat([0x11, ...intTo2Bytes(n)]) // sipush 10
+    .concat([0x60]) // iadd
+    .concat([0x91]) // i2b
+    .concat([0x54]) // bastore
+    ;
+};
+
+const jvmInstructions = [
+  ...[0x11, ...intTo2Bytes(30_000)], // sipush 30000
+  ...[0xbc, 0x08], // newarray byte
+  ...[0x4c], // astore_1 (cells)
+  ...[0x03], // iconst_0
+  ...[0x3d], // istore_2 (head)
+  ...increment(100),
+  0xb1 // return
+];
+
+
 const className = process.argv[2] || 'HelloWorld';
 const generator = new ClassFileGenerator();
-const helloWorldClass = generator.generateHelloWorldClass(className);
+const helloWorldClass = generator.generateHelloWorldClass(className, jvmInstructions);
 console.log(`${className}.class generated:`, helloWorldClass.length, 'bytes');
 fs.writeFileSync(`${className}.class`, helloWorldClass);
