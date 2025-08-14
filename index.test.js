@@ -1,6 +1,6 @@
 import test from 'node:test';
 import { brainfuckIRToJVM, parseBrainfuck } from './index.js';
-import { ARRAY_TYPE, increment, OPCODES, sipush, newarray, astore_1, iconst_0, istore_2 } from './helpers/jvm.js';
+import { ARRAY_TYPE, intTo2Bytes, increment, OPCODES, sipush, newarray, astore_1, iconst_0, istore_2, move_head, jump_eqz, jump_neqz } from './helpers/jvm.js';
 
 // TODO: mix sequential increment instructions
 // https://github.com/sunjay/brainfuck/blob/master/brainfuck.md
@@ -35,10 +35,30 @@ test('brainfuck parsing', (t) => {
   ])
 });
 
+test('jump_eqz', (t) => {
+  const ins = Buffer.from(jump_eqz(82))
+  const expected = Buffer.from([
+    0x2b,
+    0x1c,
+    0x33,
+    0x99, ...intTo2Bytes(82)
+  ]);
+
+  t.assert.strictEqual(Buffer.compare(ins, expected), 0);
+});
+
 test('brainfuck to JVM bytecode', (t) => {
   const instructions = parseBrainfuck(`
   ++++
   --
+  >>>>
+  +++
+  [
+    <
+    +
+    >
+    -
+  ]
   `);
 
   const jvmCode = brainfuckIRToJVM(instructions)
@@ -50,11 +70,19 @@ test('brainfuck to JVM bytecode', (t) => {
     istore_2(),
     Buffer.from(increment(4)),
     Buffer.from(increment(-2)),
-    Buffer.from([OPCODES.return])
+    Buffer.from(move_head(4)),
+    Buffer.from(increment(3)),
+    Buffer.from(jump_eqz(82)),
+    Buffer.from(move_head(3)),
+    Buffer.from(increment(1)),
+    Buffer.from(move_head(4)),
+    Buffer.from(increment(-1)),
+    Buffer.from(jump_neqz(48)),
+    Buffer.from([OPCODES.return]),
   ]);
 
-  console.log(jvmCode)
-  console.log(expectedCode)
+  console.log(jvmCode.toString('hex'))
+  console.log(expectedCode.toString('hex'))
 
   t.assert.strictEqual(Buffer.compare(jvmCode, expectedCode), 0);
 });

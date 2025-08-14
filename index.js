@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import { increment, intTo2Bytes, OPCODES } from './helpers/jvm.js';
+import { increment, intTo2Bytes, jump_eqz, jump_neqz, move_head, OPCODES } from './helpers/jvm.js';
 
 // By this point, we have a parser that does nothing. It only gives the commands a more complext structure to work with.
 // We can do better
@@ -73,18 +73,51 @@ export function brainfuckIRToJVM(irInstructions) {
     ...[0x03], // iconst_0
     ...[0x3d], // istore_2 (head)
   ];
-  const jvmPc = 8;
+  const patches = [];
+  let jvmPc = code.length;
   const labelPC = new Map(); // IR index -> bytecode pc
 
   for (let i = 0; i < irInstructions.length; ++i) {
     labelPC.set(i, jvmPc);
     const ins = irInstructions[i];
 
-    console.log({ins})
-
     switch (ins.type) {
       case 'increment':
-        code = code.concat(increment(ins.inc))
+        {
+          const jvmIns = increment(ins.inc);
+          code = code.concat(jvmIns)
+          jvmPc += jvmIns.length;
+        }
+        break;
+
+      case 'move_head':
+        {
+          const jvmIns = move_head(ins.head);
+          code = code.concat(jvmIns)
+          jvmPc += jvmIns.length;
+        }
+        break;
+
+      case 'jump_eqz':
+        {
+          const jvmIns = jump_eqz(0);
+          jvmPc += jvmIns.length;
+          // console.log({jvmIns: Buffer.from(jvmIns).toString('hex')})
+          // setting -2 to put it right in the placeholder
+          patches.push({ at: jvmPc - 2, targetIr: ins.jmp, kind: 'cond' });
+          code = code.concat(jvmIns);
+        }
+        break;
+
+      case 'jump_neqz':
+        {
+          const jvmIns = jump_neqz(0);
+          jvmPc += jvmIns.length;
+          // console.log({jvmIns: Buffer.from(jvmIns).toString('hex')})
+          // setting -2 to put it right in the placeholder
+          patches.push({ at: jvmPc - 2, targetIr: ins.jmp, kind: 'cond' });
+          code = code.concat(jvmIns);
+        }
         break;
 
       case 'halt':
@@ -93,6 +126,18 @@ export function brainfuckIRToJVM(irInstructions) {
       default:
         throw 'Unknown instruction ' + ins.type;
     }
+  }
+
+  // console.log({ patches })
+  // labelPC.forEach((v, k) => {
+  //   console.log(k, v)
+  // })
+
+  for (const p of patches) {
+    const targetPc = labelPC.get(p.targetIr);
+    const at = p.at;                 // where offset bytes start
+    console.log(`go to ${at} [${Buffer.from(code.slice(at, at + 2)).toString('hex')}] and replace the two bytes with ${Buffer.from(intTo2Bytes(targetPc)).toString('hex')}`);
+    code.splice(at, 2, ...intTo2Bytes(targetPc))
   }
 
   return Buffer.from(code);

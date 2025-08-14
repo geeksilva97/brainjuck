@@ -90,3 +90,21 @@ export const output = ({ fieldRef, methodRef }) => {
     ...invokeVirtual
   ]
 };
+
+export const jump_eqz = (pc) => {
+  return [
+    0x2b, // aload_1
+    0x1c, // iload_2
+    0x33, // baload (get value at index -> cell[head])
+    ...[0x99, ...intTo2Bytes(pc)] // ifeq pc (go to "pc" if current stack value is zero)
+  ]
+};
+
+export const jump_neqz = (pc) => {
+  return [
+    0x2b, // aload_1
+    0x1c, // iload_2
+    0x33, // baload (get value at index -> cell[head])
+    ...[0x9a, ...intTo2Bytes(pc)] // ifeq pc (go to "pc" if current stack value is zero)
+  ]
+};
