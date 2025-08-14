@@ -7,7 +7,7 @@ import { ClassFileGenerator } from './class_generator.js';
 
 // --- Get file from argv ---
 if (process.argv.length < 3) {
-  console.error('Usage: node brainjuck.js <brainfuck-file>');
+  console.error('Usage: node brainjuck.js <brainfuck-file> [class name]');
   process.exit(1);
 }
 
@@ -43,7 +43,7 @@ try {
 //   process.exit(1);
 // }
 
-const className = 'Brainjuck';
+const className = process.argv[3] ?? 'CompiledBrainfuck';
 const generator = new ClassFileGenerator();
 const helloWorldClass = generator.generateHelloWorldClass(className, ({
   symbolicConstantPool
