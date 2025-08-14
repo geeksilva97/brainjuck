@@ -287,3 +287,12 @@ Got this error
         0000000: 1175 30bc 084c 033d b200 18b6 001b b1
 
 The descriptor of the read method is incorrect. It should be `()I`
+
+for the output we wanna print bytes as char (ASCII) that is how the brainfuck spec ascs us to do
+
+It means the `System.out.println` descriptor should then be `(C)V`: taking a `char` instead of a `String`
+
+
+If a method returns anything this is added to the stack
+
+https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-6.html#jvms-6.5.bastore
