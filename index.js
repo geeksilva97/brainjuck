@@ -27,7 +27,7 @@ export function parseBrainfuck(code) {
             i++;
             inc += peek === '+' ? 1 : -1;
           }
-          instructions.push({ type: 'increment', inc, pointer });
+          instructions.push({ type: 'increment', inc });
         }
         break;
       case '>':
@@ -102,7 +102,7 @@ export function executeBrainfuck(code) {
         memory[pointer] = readByte();
         break;
       case 'increment':
-        memory[instruction.pointer] += instruction.inc;
+        memory[pointer] += instruction.inc;
         break;
       case 'move_head':
         pointer = instruction.head;
