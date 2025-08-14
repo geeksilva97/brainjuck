@@ -347,3 +347,13 @@ but a proper way to handle this is to add the StackMap frame
 
     Option 1: Add Stack Map Frames (Complex)
     You'd need to generate StackMapTable attributes in your class file, which is quite complex to implement correctly.
+
+I will check how to add a stack frame in another day
+
+for now i will be executing it with 
+
+```bash
+java -XX:+IgnoreUnrecognizedVMOptions -noverify Brainjuck
+```
+
+With that i can skip the verification and supress any warning
