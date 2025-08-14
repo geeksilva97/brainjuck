@@ -1,5 +1,5 @@
 import readline from 'node:readline';
-import { execute } from './index.js';
+import { executeBrainfuck } from './index.js';
 
 const storage = {
   cells: [],
@@ -32,8 +32,7 @@ rl.on('line', (code) => {
     return;
   }
 
-
-  const { cells, stdoutQueue, currentCell } = execute(code)
+  const { cells, stdoutQueue, currentCell } = executeBrainfuck(code)
 
   storage.cells = cells;
   storage.currentCell = currentCell;

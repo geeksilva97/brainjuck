@@ -1,191 +1,233 @@
-// optmizations
-// increment can be a single instruction (it can carry a incrementValue so it will respond to both increment and
-// decrement)
-//
-// backward and forward can be just jUMP
+import fs from 'node:fs';
+import { increment, input, output, intTo2Bytes, jump_eqz, jump_neqz, move_head, OPCODES } from './helpers/jvm.js';
 
+// By this point, we have a parser that does nothing. It only gives the commands a more complext structure to work with.
+// We can do better
+export function parseBrainfuck(code) {
+  const instructions = [];
+  const loopStack = [];
+  let pointer = 0;
 
-export const TOKEN_TYPES = {
-  INCREMENT: 'INCREMENT',
-  DECREMENT: 'DECREMENT',
-  FORWARD: 'FORWARD', // jmp
-  BACKWARD: 'BACKWARD', // jmp
-  JMP_FORWARD: 'JMP_FORWARD', // jmpzero
-  JMP_BACKWARD: 'JMP_BACKWARD', // jmpnonzero
-  OUTPUT: 'OUTPUT',
-  INPUT: 'INPUT',
-  EOF: 'EOF',
-  DOT: 'DOT',
-};
+  for (let i = 0; i < code.length; ++i) {
+    const c = code[i];
 
-export function tokenizeBrainfuck(code) {
-  let position = 0;
-  const tokens = [];
-
-  while (position < code.length) {
-    const currentChar = code[position];
-
-    switch (currentChar) {
+    switch (c) {
+      case ',':
+        instructions.push({ type: 'input' });
+        break;
       case '.':
-        tokens.push({ type: TOKEN_TYPES.DOT })
+        instructions.push({ type: 'output' });
         break;
       case '+':
-        tokens.push({ type: TOKEN_TYPES.INCREMENT })
-        break;
-
       case '-':
-        tokens.push({ type: TOKEN_TYPES.DECREMENT })
-        break;
-
-      case '>':
-        tokens.push({ type: TOKEN_TYPES.FORWARD })
-        break;
-
-      case '<':
-        tokens.push({ type: TOKEN_TYPES.BACKWARD })
-        break;
-
-      case '[':
-        tokens.push({ type: TOKEN_TYPES.JMP_FORWARD })
-        break;
-
-      case ']':
-        tokens.push({ type: TOKEN_TYPES.JMP_BACKWARD })
-        break;
-      case ' ':
-      case '\n':
-      case '\t':
-        // ignore whitespaces
-        break
-      default:
-        throw `unexpected symbol ${currentChar}`
-    }
-
-    position++; // advance;
-  }
-
-  tokens.push({ type: TOKEN_TYPES.EOF })
-
-  return tokens;
-}
-
-
-export function parseTokens(tokens) {
-  // instead of using straight tokens i should have proper objects for expressions
-  // they could have a redicble flag and a reduce function, the reduce would evaluate each object
-  // reducible flag would determine if that expression is reducble
-  const parsed = [];
-  const stack = [];
-  let cellCount = 0;
-
-  for (let i = 0; i < tokens.length; ++i) {
-    const token = tokens[i];
-
-    switch (token.type) {
-      case TOKEN_TYPES.DOT:
-        parsed.push({ token, cell: cellCount });
-        break;
-      case TOKEN_TYPES.EOF:
-        parsed.push({ token });
-        break;
-      case TOKEN_TYPES.INCREMENT:
-      case TOKEN_TYPES.DECREMENT:
-        parsed.push({ token, cell: cellCount });
-        break;
-
-      case TOKEN_TYPES.BACKWARD:
-        parsed.push({ token, jmp: --cellCount });
-        break;
-
-      case TOKEN_TYPES.FORWARD:
-        parsed.push({ token, jmp: ++cellCount });
-        break;
-      case TOKEN_TYPES.JMP_FORWARD:
-        stack.push({ token, pos: i });
-        parsed.push({ token, jmp: null })
-        break;
-      case TOKEN_TYPES.JMP_BACKWARD:
         {
-          const stackElem = stack.pop();
-          if (!stackElem) {
-            throw `unmatched ] at position ${i}`;
+          let inc = c === '+' ? 1 : -1;
+
+          while (['+', '-'].includes(code[i + 1])) {
+            const peek = code[i + 1];
+            i++;
+            inc += peek === '+' ? 1 : -1;
+          }
+          instructions.push({ type: 'increment', inc });
+        }
+        break;
+      case '>':
+      case '<':
+        pointer += c === '>' ? 1 : -1;
+        while (['>', '<'].includes(code[i + 1])) {
+          const peek = code[i + 1];
+          i++;
+          pointer += peek === '>' ? 1 : -1;
+        }
+        instructions.push({ type: 'move_head', head: pointer });
+        break;
+      case '[':
+        loopStack.push([c, instructions.length]);
+        // setting jmp as -1 till the end of loop is reached and the jmp can actually be computed
+        instructions.push({ type: 'jump_eqz', jmp: -1 });
+        break;
+      case ']':
+        {
+          const [char, pos] = loopStack.pop();
+          if (char !== '[') {
+            throw new Error('Unbalanced brackets');
           }
 
-          if (stackElem.token.type !== TOKEN_TYPES.JMP_FORWARD) {
-            throw `unmatched [ at position ${stackElem.pos}`;
-          }
-
-          // o jump do inicio do loop vai ser o da posicao atual (que é a mesma do ]) mais um
-          parsed[stackElem.pos].jmp = i + 1;
-
-          // o jump do fim do loop vai ser a posicao do inicio do loop mais um
-          parsed.push({ token, jmp: stackElem.pos + 1 })
+          instructions[pos].jmp = instructions.length + 1;
+          instructions.push({ type: 'jump_neqz', jmp: pos + 1 });
         }
         break;
     }
   }
 
-  return parsed;
+  instructions.push({ type: 'halt' })
+
+  return instructions;
 }
 
-export function evaluate(instructions) {
-  const cells = new Uint8Array(30_000);
-  let currentCell = 0;
+/**
+ * @param {Array<any>} irInstructions
+ * @param {{ input: { fieldRefIndex: number; methodRefIndex: number; }, output: { fieldRefIndex: number; methodRefIndex: number; } }}
+ */
+export function brainfuckIRToJVM(irInstructions, {
+  input: iin,
+  output: out
+}) {
+  let code = [
+    ...[0x11, ...intTo2Bytes(30_000)], // sipush 30000
+    ...[0xbc, 0x08], // newarray byte
+    ...[0x4c], // astore_1 (cells)
+    ...[0x03], // iconst_0
+    ...[0x3d], // istore_2 (head)
+  ];
+  const patches = [];
+  let jvmPc = code.length;
+  const labelPC = new Map(); // IR index -> bytecode pc
+
+  for (let i = 0; i < irInstructions.length; ++i) {
+    labelPC.set(i, jvmPc);
+    const ins = irInstructions[i];
+
+    switch (ins.type) {
+      case 'output':
+        {
+          const jvmIns = output({
+            fieldRef: out.fieldRefIndex,
+            methodRef: out.methodRefIndex
+          });
+          code = code.concat(jvmIns)
+          jvmPc += jvmIns.length;
+        }
+        break;
+      case 'input':
+        {
+          const jvmIns = input({
+            fieldRef: iin.fieldRefIndex,
+            methodRef: iin.methodRefIndex
+          });
+          code = code.concat(jvmIns)
+          jvmPc += jvmIns.length;
+        }
+        break;
+      case 'increment':
+        {
+          const jvmIns = increment(ins.inc);
+          code = code.concat(jvmIns)
+          jvmPc += jvmIns.length;
+        }
+        break;
+
+      case 'move_head':
+        {
+          const jvmIns = move_head(ins.head);
+          code = code.concat(jvmIns)
+          jvmPc += jvmIns.length;
+        }
+        break;
+
+      case 'jump_eqz':
+        {
+          const jvmIns = jump_eqz(0);
+          jvmPc += jvmIns.length;
+          // console.log({jvmIns: Buffer.from(jvmIns).toString('hex')})
+          // setting -2 to put it right in the placeholder
+          patches.push({ at: jvmPc - 2, targetIr: ins.jmp, kind: 'cond' });
+          code = code.concat(jvmIns);
+        }
+        break;
+
+      case 'jump_neqz':
+        {
+          const jvmIns = jump_neqz(0);
+          jvmPc += jvmIns.length;
+          // console.log({jvmIns: Buffer.from(jvmIns).toString('hex')})
+          // setting -2 to put it right in the placeholder
+          patches.push({ at: jvmPc - 2, targetIr: ins.jmp, kind: 'cond' });
+          code = code.concat(jvmIns);
+        }
+        break;
+
+      case 'halt':
+        code = code.concat(OPCODES.return);
+        break;
+      default:
+        throw 'Unknown instruction ' + ins.type;
+    }
+  }
+
+  for (const p of patches) {
+    const targetPc = labelPC.get(p.targetIr);
+    const branchPc = p.at - 1; // opcode is 1 byte before the offset
+    const instrLen = 3;        // e.g., ifeq
+    const offset = targetPc - branchPc;
+    code.splice(p.at, 2, ...intTo2Bytes(offset));
+  }
+
+  return Buffer.from(code);
+}
+
+function readByte() {
+  let buffer = Buffer.alloc(3);
+  fs.readSync(0, buffer, 0, 3);
+  buffer = buffer.filter(byte => byte !== 0 && byte !== 10 && byte !== 13);
+
+  let data = buffer.toString('utf8');
+  if (isNaN(data)) return data.charCodeAt(0);
+
+  data = Number(data);
+
+  if (data < 0 || data > 255) {
+    throw new Error('Invalid byte');
+  }
+
+  return data;
+}
+
+export function executeBrainfuck(code) {
+  const instructions = parseBrainfuck(code);
+  const memory = new Uint8Array(30000);
+  let pointer = 0;
   let pc = 0;
-  let instruction = instructions[pc];
-  let jmp = false;
-  const stdoutQueue = [];
-  while (instruction?.token && instruction.token.type != TOKEN_TYPES.EOF) {
-    jmp = false;
-    const tokenType = instruction.token.type;
-    switch (tokenType) {
-      case TOKEN_TYPES.DOT:
-        stdoutQueue.push(String.fromCharCode(cells[currentCell]));
+
+  while (true) {
+    // fetch
+    const instruction = instructions[pc];
+    // console.log({ pc, instruction, pointer, pointerContent: memory[pointer] })
+
+    // decode and execute
+    switch (instruction.type) {
+      case 'output':
+        process.stdout.write(String.fromCharCode(memory[pointer]));
+        process.stdout.write('\n');
         break;
-      case TOKEN_TYPES.INCREMENT:
-        cells[currentCell] += 1;
+      case 'input':
+        memory[pointer] = readByte();
         break;
-      case TOKEN_TYPES.DECREMENT:
-        cells[currentCell] -= 1;
+      case 'increment':
+        memory[pointer] += instruction.inc;
         break;
-      case TOKEN_TYPES.FORWARD:
-        currentCell += 1;
+      case 'move_head':
+        pointer = instruction.head;
         break;
-      case TOKEN_TYPES.BACKWARD:
-        currentCell -= 1;
-        break;
-      case TOKEN_TYPES.JMP_FORWARD:
-        if (cells[currentCell] === 0) {
-          jmp = true;
+      case 'jump_eqz':
+        if (memory[pointer] === 0) {
           pc = instruction.jmp;
+          continue;
         }
         break;
-      case TOKEN_TYPES.JMP_BACKWARD:
-        if (cells[currentCell] !== 0) {
-          jmp = true;
+      case 'jump_neqz':
+        if (memory[pointer] !== 0) {
           pc = instruction.jmp;
+          continue;
         }
         break;
+      case 'halt':
+        console.table(memory.slice(0, 10));
+        return;
+      default:
+        throw Error(`Unknown instruction ${instruction.type}`);
     }
 
-    if (!jmp) {
-      pc++;
-    }
-
-    instruction = instructions[pc];
+    pc++;
   }
-
-  return {
-    cells,
-    stdoutQueue,
-    currentCell
-  };
-
-  // console.table(cells.slice(0, 10))
-}
-
-export function execute(code) {
-  const tokens = tokenizeBrainfuck(code);
-  const parsed = parseTokens(tokens);
-  return evaluate(parsed)
 }
