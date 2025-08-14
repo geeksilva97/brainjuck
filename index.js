@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { increment, intTo2Bytes, OPCODES } from './helpers/jvm.js';
 
 // By this point, we have a parser that does nothing. It only gives the commands a more complext structure to work with.
 // We can do better
@@ -62,6 +63,39 @@ export function parseBrainfuck(code) {
   instructions.push({ type: 'halt' })
 
   return instructions;
+}
+
+export function brainfuckIRToJVM(irInstructions) {
+  let code = [
+    ...[0x11, ...intTo2Bytes(30_000)], // sipush 30000
+    ...[0xbc, 0x08], // newarray byte
+    ...[0x4c], // astore_1 (cells)
+    ...[0x03], // iconst_0
+    ...[0x3d], // istore_2 (head)
+  ];
+  const jvmPc = 8;
+  const labelPC = new Map(); // IR index -> bytecode pc
+
+  for (let i = 0; i < irInstructions.length; ++i) {
+    labelPC.set(i, jvmPc);
+    const ins = irInstructions[i];
+
+    console.log({ins})
+
+    switch (ins.type) {
+      case 'increment':
+        code = code.concat(increment(ins.inc))
+        break;
+
+      case 'halt':
+        code = code.concat(OPCODES.return);
+        break;
+      default:
+        throw 'Unknown instruction ' + ins.type;
+    }
+  }
+
+  return Buffer.from(code);
 }
 
 function readByte() {
