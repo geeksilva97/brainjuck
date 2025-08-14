@@ -1,12 +1,11 @@
-# Brainfuck JVM Compiler
+# BrainJuck: The Ultra Master Brainfuck JVM Compiler
 
-A Brainfuck-to-JVM bytecode compiler written in Java. This project enables you to compile Brainfuck source code into JVM bytecode, allowing Brainfuck programs to run on the Java Virtual Machine (JVM).
+A Brainfuck-to-JVM bytecode compiler written in JavaScript (Node.js). This project enables you to compile Brainfuck source code into JVM bytecode, allowing Brainfuck programs to run on the Java Virtual Machine (JVM).
 
 ## Features
 
 - Compiles Brainfuck source code to executable JVM `.class` files
-- Supports all standard Brainfuck commands (`+`, `-`, `>`, `<`, `[`, `]`, `.`, `,`)
-- High performance execution leveraging JVM optimizations
+- Supports all standard [Brainfuck commands](https://github.com/sunjay/brainfuck/blob/master/brainfuck.md) (`+`, `-`, `>`, `<`, `[`, `]`, `.`, `,`)
 - Command-line interface for compiling and running Brainfuck programs
 - Cross-platform: runs anywhere the JVM is available
 
@@ -15,27 +14,13 @@ A Brainfuck-to-JVM bytecode compiler written in Java. This project enables you t
 ### Prerequisites
 
 - Java 8 or higher installed
-- (Optional) Maven or Gradle for building from source
-
-### Building
+- Node.js v22 or higher installed
 
 Clone the repository:
 
 ```sh
-git clone https://github.com/geeksilva97/brainfuck-jvm-compiler.git
-cd brainfuck-jvm-compiler
-```
-
-Build with Maven:
-
-```sh
-mvn package
-```
-
-Or with Gradle:
-
-```sh
-gradle build
+git clone https://github.com/geeksilva97/brainjuck.git
+cd brainjuck
 ```
 
 ### Usage
@@ -43,24 +28,17 @@ gradle build
 #### Compile a Brainfuck Program
 
 ```sh
-java -jar target/brainfuck-jvm-compiler.jar compile hello.bf HelloWorld
+./brainjuck your-brainfuck-file.bf [<output-class-name>]
 ```
 
-- `hello.bf`: Path to your Brainfuck source file
-- `HelloWorld`: Name for the generated main class
+- `your-brainfuck-file.bf`: The Brainfuck source file you want to compile.
+- `<output-class-name>`: Optional. The name of the output class file (default is `CompiledBrainfuck`).
 
-This will produce a `HelloWorld.class` file.
 
 #### Run the Generated Class
 
 ```sh
-java HelloWorld
-```
-
-Or, run Brainfuck code directly:
-
-```sh
-java -jar target/brainfuck-jvm-compiler.jar run hello.bf
+java -XX:+IgnoreUnrecognizedVMOptions -noverify OutputClassName
 ```
 
 ## Examples
@@ -68,16 +46,18 @@ java -jar target/brainfuck-jvm-compiler.jar run hello.bf
 Compile and run the classic "Hello, World!":
 
 ```sh
-java -jar target/brainfuck-jvm-compiler.jar run examples/hello.bf
+./brainjuck samples/helloworld.bf HelloWorld
+java -XX:+IgnoreUnrecognizedVMOptions -noverify HelloWorld
 ```
 
-## Contributing
+## Limitations
 
-Contributions are welcome! Please open issues or pull requests for improvements, bug fixes, or feature requests.
+The generated JVM byte code doesn't have a StackMapTable attribute (that is needed for jumps [`ifeq`][] and [`ifneq`][]). That's why the flag `-noverify` is needed when running the generated class.
 
-## License
+I plan to add it soon.
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+[`ifeq`]: https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-6.html#jvms-6.5.if_cond
+[`ifneq`]: https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-6.html#jvms-6.5.if_cond
 
 ---
 
