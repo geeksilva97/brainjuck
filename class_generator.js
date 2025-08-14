@@ -1,5 +1,9 @@
 import fs from 'node:fs';
 
+// The base structure of this file was written by Claude - it was very useful. I could then focus on the implementation
+// of the JVM instructions.
+// of course, I had already understood the structure of the ClassFile format, while writing the read_jvm_bytecode.js
+// file.
 export class ClassFileGenerator {
   constructor() {
     this.buffer = [];
