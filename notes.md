@@ -357,3 +357,6 @@ java -XX:+IgnoreUnrecognizedVMOptions -noverify Brainjuck
 ```
 
 With that i can skip the verification and supress any warning
+
+
+Can generate some nice texts using: https://copy.sh/brainfuck/text.html
