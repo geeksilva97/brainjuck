@@ -25,7 +25,7 @@ cd brainjuck
 
 Demo, video below:
 
-![Demo](./demo.mov)
+![Demo](https://github.com/geeksilva97/brainfuck-jvm-compiler/blob/master/demo.mov)
 
 ### Usage
 
