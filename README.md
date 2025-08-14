@@ -25,7 +25,8 @@ cd brainjuck
 
 Demo, video below:
 
-<video src="demo.mp4" controls></video>
+
+![Brainfuck Compiler Demo](demo.gif)
 
 ### Usage
 
