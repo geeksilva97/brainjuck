@@ -35,6 +35,29 @@ test('brainfuck parsing', (t) => {
   ])
 });
 
+test('subsequent increments are combined', (t) => {
+  const ir = parseBrainfuck(`
+  ++++
+  ---
+  `);
+
+  t.assert.deepStrictEqual(ir, [
+    { type: 'increment', inc: 1 },
+    { type: 'halt' }
+  ]);
+});
+
+test('combined zero increments are not emitted', (t) => {
+  const ir = parseBrainfuck(`
+  ++++
+  ----
+  `);
+
+  t.assert.deepStrictEqual(ir, [
+    { type: 'halt' }
+  ]);
+});
+
 test('jump_eqz', (t) => {
   const ins = Buffer.from(jump_eqz(82))
   const expected = Buffer.from([
@@ -61,23 +84,31 @@ test('brainfuck to JVM bytecode', (t) => {
   ]
   `);
 
-  const jvmCode = brainfuckIRToJVM(instructions)
+  const jvmCode = brainfuckIRToJVM(instructions, {
+    input: { 
+      fieldRefIndex: 0,
+      methodRefIndex: 0
+    },
+    output: {
+      fieldRefIndex: 0,
+      methodRefIndex: 0
+    }
+  })
   const expectedCode = Buffer.concat([
     sipush(30_000),
     newarray(8, ARRAY_TYPE.T_BYTE),
     astore_1(),
     iconst_0(),
     istore_2(),
-    Buffer.from(increment(4)),
-    Buffer.from(increment(-2)),
+    Buffer.from(increment(2)),
     Buffer.from(move_head(4)),
     Buffer.from(increment(3)),
-    Buffer.from(jump_eqz(82)),
+    Buffer.from(jump_eqz(37)),
     Buffer.from(move_head(3)),
     Buffer.from(increment(1)),
     Buffer.from(move_head(4)),
     Buffer.from(increment(-1)),
-    Buffer.from(jump_neqz(48)),
+    Buffer.from(jump_neqz(-31)),
     Buffer.from([OPCODES.return]),
   ]);
 

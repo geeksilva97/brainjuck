@@ -28,6 +28,20 @@ export function parseBrainfuck(code) {
             i++;
             inc += peek === '+' ? 1 : -1;
           }
+
+          if (inc === 0) {
+            continue; // no-op
+          }
+
+          const lastInstruction = instructions[instructions.length - 1];
+          if (lastInstruction && lastInstruction.type === 'increment') {
+            lastInstruction.inc += inc;
+            if (lastInstruction.inc === 0) {
+              instructions.pop();
+            }
+            continue;
+          }
+
           instructions.push({ type: 'increment', inc });
         }
         break;
