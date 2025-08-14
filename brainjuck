@@ -33,16 +33,6 @@ try {
   process.exit(1);
 }
 
-// --- Compile to JVM bytecode ---
-// let bytecode;
-// try {
-//   bytecode = brainfuckIRToJVM(ir);
-// } catch (err) {
-//   console.error('Error converting IR to JVM bytecode:');
-//   console.error(err.message);
-//   process.exit(1);
-// }
-
 const className = process.argv[3] ?? 'CompiledBrainfuck';
 const generator = new ClassFileGenerator();
 const helloWorldClass = generator.generateHelloWorldClass(className, ({

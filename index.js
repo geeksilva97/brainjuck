@@ -158,7 +158,6 @@ export function brainfuckIRToJVM(irInstructions, {
   for (const p of patches) {
     const targetPc = labelPC.get(p.targetIr);
     const branchPc = p.at - 1; // opcode is 1 byte before the offset
-    const instrLen = 3;        // e.g., ifeq
     const offset = targetPc - branchPc;
     code.splice(p.at, 2, ...intTo2Bytes(offset));
   }
