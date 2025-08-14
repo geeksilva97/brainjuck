@@ -296,3 +296,54 @@ It means the `System.out.println` descriptor should then be `(C)V`: taking a `ch
 If a method returns anything this is added to the stack
 
 https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-6.html#jvms-6.5.bastore
+
+
+---
+
+okay, one more error after implementing jumps
+
+    Error: Unable to initialize main class Brainjuck
+    Caused by: java.lang.VerifyError: Expecting a stackmap frame at branch target 107
+    Exception Details:
+    Location:
+        Brainjuck.main([Ljava/lang/String;)V @35: ifeq
+    Reason:
+        Expected stackmap frame at this location.
+    Bytecode:
+        0000000: 1175 30bc 084c 033d 2b1c 5c33 1100 0260
+        0000010: 9154 1100 013d 2b1c 5c33 1100 0560 9154
+        0000020: 2b1c 3399 0048 1100 003d 2b1c 5c33 1100
+        0000030: 0160 9154 1100 013d 2b1c 5c33 11ff ff60
+        0000040: 9154 2b1c 339a 0026 b1
+
+the bytecode had something like
+
+    Error: Bytecode offset out of range; bci=107, codeLength=73
+        35: ifeq          ???
+    Error: Bytecode offset out of range; bci=107, codeLength=73
+        69: ifne          ???
+
+some error messages andn `???` in the jump instructions
+
+For a test i set jump pc to zero and it turned into
+
+    35: ifeq          35
+    69: ifne          69
+
+notice how it keeps the same line
+
+that's interesting. seems like the pc should be an offset
+
+
+
+Now i fixed the offset thing. When running i keep getting the error: 
+    Caused by: java.lang.VerifyError: Expecting a stackmap frame at branch target 107
+
+well we can bypass verification and ssems like it works!
+
+`java -noverify Brainjuck`
+
+but a proper way to handle this is to add the StackMap frame
+
+    Option 1: Add Stack Map Frames (Complex)
+    You'd need to generate StackMapTable attributes in your class file, which is quite complex to implement correctly.

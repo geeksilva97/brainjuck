@@ -325,6 +325,8 @@ const opcodes = {
   0xb7: 'invokespecial',
   0xb8: 'invokestatic',
   0xbc: 'newarray',
+  0x99: 'ifeq',
+  0x9a: 'ifne',
 };
 
 const ARRAY_TYPES = {
@@ -417,6 +419,15 @@ function disasembleMethod(methodName) {
           const index = bufferToInt(byteCodeReader.read(2));
 
           console.log('\tputstatic', index);
+        }
+        break;
+
+      case 'ifeq':
+      case 'ifne':
+        {
+          const pc = bufferToInt(byteCodeReader.read(2));
+
+          console.log(`\t${opcode}`, pc);
         }
         break;
 

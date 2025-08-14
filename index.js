@@ -128,16 +128,12 @@ export function brainfuckIRToJVM(irInstructions) {
     }
   }
 
-  // console.log({ patches })
-  // labelPC.forEach((v, k) => {
-  //   console.log(k, v)
-  // })
-
   for (const p of patches) {
     const targetPc = labelPC.get(p.targetIr);
-    const at = p.at;                 // where offset bytes start
-    console.log(`go to ${at} [${Buffer.from(code.slice(at, at + 2)).toString('hex')}] and replace the two bytes with ${Buffer.from(intTo2Bytes(targetPc)).toString('hex')}`);
-    code.splice(at, 2, ...intTo2Bytes(targetPc))
+    const branchPc = p.at - 1; // opcode is 1 byte before the offset
+    const instrLen = 3;        // e.g., ifeq
+    const offset = targetPc - branchPc;
+    code.splice(p.at, 2, ...intTo2Bytes(offset));
   }
 
   return Buffer.from(code);

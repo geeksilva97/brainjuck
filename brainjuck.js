@@ -1,0 +1,56 @@
+#!/usr/bin/env node
+
+import path from 'node:path';
+import fs from 'node:fs';
+import { parseBrainfuck, brainfuckIRToJVM } from './index.js';
+import { ClassFileGenerator } from './class_generator.js';
+
+// --- Get file from argv ---
+if (process.argv.length < 3) {
+  console.error('Usage: node brainjuck.js <brainfuck-file>');
+  process.exit(1);
+}
+
+const filePath = path.resolve(process.argv[2]);
+
+// --- Read Brainfuck source ---
+let source;
+try {
+  source = fs.readFileSync(filePath, 'utf8');
+} catch (err) {
+  console.error(`Error reading file: ${filePath}`);
+  console.error(err.message);
+  process.exit(1);
+}
+
+// --- Parse to IR ---
+let ir;
+try {
+  ir = parseBrainfuck(source);
+} catch (err) {
+  console.error('Error parsing Brainfuck code:');
+  console.error(err.message);
+  process.exit(1);
+}
+
+// --- Compile to JVM bytecode ---
+let bytecode;
+try {
+  bytecode = brainfuckIRToJVM(ir);
+} catch (err) {
+  console.error('Error converting IR to JVM bytecode:');
+  console.error(err.message);
+  process.exit(1);
+}
+
+// --- Output bytecode ---
+process.stdout.write(bytecode.toString('hex'));
+
+const className = 'Brainjuck';
+const generator = new ClassFileGenerator();
+const helloWorldClass = generator.generateHelloWorldClass(className, () => {
+  return bytecode;
+});
+console.log(`${className}.class generated:`, helloWorldClass.length, 'bytes');
+
+ClassFileGenerator.saveToFile(`${className}.class`, helloWorldClass);

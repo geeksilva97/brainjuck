@@ -1,10 +1,4 @@
 # my simple brainfuck code
 
 ++
->
-+++++
-[
-<
-+
->-
-]
+[->+<]
