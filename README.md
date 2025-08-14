@@ -23,6 +23,10 @@ git clone https://github.com/geeksilva97/brainjuck.git
 cd brainjuck
 ```
 
+Demo, video below:
+
+![Demo](./demo.mov)
+
 ### Usage
 
 #### Compile a Brainfuck Program
