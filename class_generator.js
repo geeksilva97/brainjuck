@@ -188,7 +188,7 @@ export class ClassFileGenerator {
     const printStreamDescriptorIndex = this.addUtf8Constant("Ljava/io/PrintStream;");
     const outNameAndTypeIndex = this.addNameAndTypeConstant(outFieldNameIndex, printStreamDescriptorIndex);
     const outFieldrefIndex = this.addFieldrefConstant(systemClassIndex, outNameAndTypeIndex);
-    const printlnNameIndex = this.addUtf8Constant("println");
+    const printlnNameIndex = this.addUtf8Constant("print");
     const printlnDescriptorIndex = this.addUtf8Constant("(C)V");
     // const printlnDescriptorIndex = this.addUtf8Constant("(Ljava/lang/String;)V");
     const printlnNameAndTypeIndex = this.addNameAndTypeConstant(printlnNameIndex, printlnDescriptorIndex);

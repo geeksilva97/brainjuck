@@ -34,22 +34,30 @@ try {
 }
 
 // --- Compile to JVM bytecode ---
-let bytecode;
-try {
-  bytecode = brainfuckIRToJVM(ir);
-} catch (err) {
-  console.error('Error converting IR to JVM bytecode:');
-  console.error(err.message);
-  process.exit(1);
-}
-
-// --- Output bytecode ---
-process.stdout.write(bytecode.toString('hex'));
+// let bytecode;
+// try {
+//   bytecode = brainfuckIRToJVM(ir);
+// } catch (err) {
+//   console.error('Error converting IR to JVM bytecode:');
+//   console.error(err.message);
+//   process.exit(1);
+// }
 
 const className = 'Brainjuck';
 const generator = new ClassFileGenerator();
-const helloWorldClass = generator.generateHelloWorldClass(className, () => {
-  return bytecode;
+const helloWorldClass = generator.generateHelloWorldClass(className, ({
+  symbolicConstantPool
+}) => {
+  return brainfuckIRToJVM(ir, {
+    input: {
+      fieldRefIndex: symbolicConstantPool.input.fieldRef,
+      methodRefIndex: symbolicConstantPool.input.readMethodrefIndex
+    },
+    output: {
+      fieldRefIndex: symbolicConstantPool.output.fieldRef,
+      methodRefIndex: symbolicConstantPool.output.printlnMethodrefIndex
+    }
+  })
 });
 console.log(`${className}.class generated:`, helloWorldClass.length, 'bytes');
 

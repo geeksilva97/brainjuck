@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import { increment, intTo2Bytes, jump_eqz, jump_neqz, move_head, OPCODES } from './helpers/jvm.js';
+import { increment, input, output, intTo2Bytes, jump_eqz, jump_neqz, move_head, OPCODES } from './helpers/jvm.js';
 
 // By this point, we have a parser that does nothing. It only gives the commands a more complext structure to work with.
 // We can do better
@@ -65,7 +65,14 @@ export function parseBrainfuck(code) {
   return instructions;
 }
 
-export function brainfuckIRToJVM(irInstructions) {
+/**
+ * @param {Array<any>} irInstructions
+ * @param {{ input: { fieldRefIndex: number; methodRefIndex: number; }, output: { fieldRefIndex: number; methodRefIndex: number; } }}
+ */
+export function brainfuckIRToJVM(irInstructions, {
+  input: iin,
+  output: out
+}) {
   let code = [
     ...[0x11, ...intTo2Bytes(30_000)], // sipush 30000
     ...[0xbc, 0x08], // newarray byte
@@ -82,6 +89,26 @@ export function brainfuckIRToJVM(irInstructions) {
     const ins = irInstructions[i];
 
     switch (ins.type) {
+      case 'output':
+        {
+          const jvmIns = output({
+            fieldRef: out.fieldRefIndex,
+            methodRef: out.methodRefIndex
+          });
+          code = code.concat(jvmIns)
+          jvmPc += jvmIns.length;
+        }
+        break;
+      case 'input':
+        {
+          const jvmIns = input({
+            fieldRef: iin.fieldRefIndex,
+            methodRef: iin.methodRefIndex
+          });
+          code = code.concat(jvmIns)
+          jvmPc += jvmIns.length;
+        }
+        break;
       case 'increment':
         {
           const jvmIns = increment(ins.inc);
