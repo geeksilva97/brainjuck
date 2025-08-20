@@ -325,7 +325,9 @@ const opcodes = {
   0xb7: 'invokespecial',
   0xb8: 'invokestatic',
   0xbc: 'newarray',
+  0xa7: 'goto',
   0x99: 'ifeq',
+  0xa0: 'if_icmpne',
   0x9a: 'ifne',
 };
 
@@ -350,6 +352,7 @@ function disasembleMethod(methodName) {
   const code = methodCodeAttr.data.code;
   const byteCodeReader = new BufferReader(code);
   while (byteCodeReader.position < code.length) {
+    // console.log('PC =', byteCodeReader.position, 'of', code.length);
     const byte = byteCodeReader.read();
     const opcode = opcodes[byte[0]];
 
@@ -422,7 +425,9 @@ function disasembleMethod(methodName) {
         }
         break;
 
+      case 'goto':
       case 'ifeq':
+      case 'if_icmpne':
       case 'ifne':
         {
           const pc = bufferToInt(byteCodeReader.read(2));

@@ -469,3 +469,10 @@ zooming in
                                     (28 - 1 - 20) -> 7
         frame_type = 16 /* same */ (45 - 1 - 28) -> 16
         frame_type = 7 /* same */ (53 - 1 - 45) -> 7
+
+
+    Each value of the attributes table must be an attribute structure (§4.7). A Code attribute can have any number of optional attributes associated with it.
+
+    The only attributes defined by this specification as appearing in the attributes table of a Code attribute are the LineNumberTable (§4.7.12), LocalVariableTable (§4.7.13), LocalVariableTypeTable (§4.7.14), and StackMapTable (§4.7.4) attributes.
+
+    If a Java Virtual Machine implementation recognizes class files whose version number is 50.0 or above, it must recognize and correctly read StackMapTable (§4.7.4) attributes found in the attributes table of a Code attribute of a class file whose version number is 50.0 or above.

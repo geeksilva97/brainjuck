@@ -3,6 +3,7 @@ import java.io.*;
 public class IfEqExample2 {
     public static void main(String[] args) throws IOException {
         int x = 3;
+        byte[] buffer = new byte[30000];
         if (x % 2 == 1) {
             System.out.println("3 is odd");
         } else {

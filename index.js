@@ -176,6 +176,8 @@ export function brainfuckIRToJVM(irInstructions, {
     code.splice(p.at, 2, ...intTo2Bytes(offset));
   }
 
+  // TODO: compute the stack map table from the code
+
   return Buffer.from(code);
 }
 
