@@ -360,3 +360,112 @@ With that i can skip the verification and supress any warning
 
 
 Can generate some nice texts using: https://copy.sh/brainfuck/text.html
+
+
+---
+
+Gotta try adding the stack map frame
+
+it's a bit weird how things work
+
+Frame Type Categories
+The JVM spec defines different frame types based on what changes between frames:
+
+0-63: same_frame - nothing changed
+64-127: same_locals_1_stack_item_frame - stack has 1 item, locals unchanged
+128-246: Reserved
+247: same_locals_1_stack_item_frame_extended
+248-250: chop_frame - remove 1-3 locals
+251: same_frame_extended
+252-254: append_frame - add 1-3 locals
+255: full_frame - specify everything explicitly
+
+In brainfuck we have two local variables (the memory array and the pointer). So, when we do jumps, the locals remain the
+same
+
+I think the first one is an append_frame
+
+```Frame Type: 253 (append_frame)
+Offset Delta: 0
+Locals:
+  [B (array of bytes)
+  I (int)
+Stack:
+```
+
+253 since we have 2 locals and the base is 251
+
+all the other frames are the same
+
+```Frame Type: 0 (same_frame)
+Offset Delta: X
+```
+
+
+I think i got an idea
+
+```
+  public static void main(java.lang.String[]) throws java.io.IOException;
+    descriptor: ([Ljava/lang/String;)V
+    flags: (0x0009) ACC_PUBLIC, ACC_STATIC
+    Code:
+      stack=2, locals=2, args_size=1
+         0: iconst_3
+         1: istore_1
+         2: iload_1
+         3: iconst_2
+         4: irem
+         5: iconst_1
+         6: if_icmpne     20
+         9: getstatic     #7                  // Field java/lang/System.out:Ljava/io/PrintStream;
+        12: ldc           #13                 // String 3 is odd
+        14: invokevirtual #15                 // Method java/io/PrintStream.println:(Ljava/lang/String;)V
+        17: goto          28
+        20: getstatic     #7                  // Field java/lang/System.out:Ljava/io/PrintStream;
+        23: ldc           #21                 // String 3 is even
+        25: invokevirtual #15                 // Method java/io/PrintStream.println:(Ljava/lang/String;)V
+        28: iload_1
+        29: iconst_2
+        30: irem
+        31: ifne          45
+        34: getstatic     #7                  // Field java/lang/System.out:Ljava/io/PrintStream;
+        37: ldc           #23                 // String 4 is odd
+        39: invokevirtual #15                 // Method java/io/PrintStream.println:(Ljava/lang/String;)V
+        42: goto          53
+        45: getstatic     #7                  // Field java/lang/System.out:Ljava/io/PrintStream;
+        48: ldc           #25                 // String 4 is even
+        50: invokevirtual #15                 // Method java/io/PrintStream.println:(Ljava/lang/String;)V
+        53: return
+      LineNumberTable:
+        line 5: 0
+        line 6: 2
+        line 7: 9
+        line 9: 20
+        line 12: 28
+        line 13: 34
+        line 15: 45
+        line 32: 53
+      StackMapTable: number_of_entries = 4 (number of jumps)
+        frame_type = 252 /* append */ (k = frame_type - 251) -> (frame_type = k + 251)
+          offset_delta = 20 (first frame, offset is as is)
+          locals = [ int ] (number of locals added from the previous frame, this is what "k" is )
+        frame_type = 7 /* same */ -> (offset_delta = frame_type) -> (jump_offset - 1 - previous_offset) - jump_offset is the calculated offset in the instructions
+                                    (28 - 1 - 20) -> 7
+        frame_type = 16 /* same */ (45 - 1 - 28) -> 16
+        frame_type = 7 /* same */ (53 - 1 - 45) -> 7
+    Exceptions:
+      throws java.io.IOException
+}
+```
+
+zooming in
+
+
+      StackMapTable: number_of_entries = 4 (number of jumps)
+        frame_type = 252 /* append */ (k = frame_type - 251) -> (frame_type = k + 251)
+          offset_delta = 20 (first frame, offset is as is)
+          locals = [ int ] (number of locals added from the previous frame, this is what "k" is )
+        frame_type = 7 /* same */ -> (offset_delta = frame_type) -> (jump_offset - 1 - previous_offset) - jump_offset is the calculated offset in the instructions
+                                    (28 - 1 - 20) -> 7
+        frame_type = 16 /* same */ (45 - 1 - 28) -> 16
+        frame_type = 7 /* same */ (53 - 1 - 45) -> 7
