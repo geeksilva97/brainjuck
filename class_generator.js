@@ -320,10 +320,9 @@ export class ClassFileGenerator {
     const CODE_ATTR_BASE_SIZE = 12;
     const STACK_MAP_TABLE_ATTR_BASE_SIZE = 6; // u2 attribute_name_index + u4 attribute_length 
     this.writeU2(codeNameIndex); // attribute_name_index
-    // Adding 18 for an specific test but this should be the size of the StackMapTable attribute
-    // 10 + 6 (6 the fixed header of the StackMapTable attribute and 10 the size of its content)
 
     const stackMapTableAttrLength = this.getStackMapTableSize(stackMapTable);
+    console.log('jvmisntructions.length', jvmInstructions.length, 'stackMapTableAttrLength', stackMapTableAttrLength, 'STACK_MAP_TABLE_ATTR_BASE_SIZE', STACK_MAP_TABLE_ATTR_BASE_SIZE);
 
     this.writeU4(CODE_ATTR_BASE_SIZE + jvmInstructions.length + stackMapTableAttrLength + STACK_MAP_TABLE_ATTR_BASE_SIZE); // attribute_length
     this.writeU2(4); // max_stack
@@ -354,10 +353,14 @@ export class ClassFileGenerator {
     let stackMapTableAttributeLength = STACK_MAP_TABLE_ATTR_BASE_SIZE;
     for (const entry of stackMapTable) {
       const frameType = entry.frameType || entry.offsetDelta;
-      if (frameType < 64) {
+      const isAppendFrame = frameType >= 252 && frameType <= 254;
+      const isSameFrame = frameType >= 0 && frameType <= 63;
+      const isSameFrameExtended = frameType === 251;
+
+      if (isSameFrame) {
         // same frame
         stackMapTableAttributeLength += 1; // type of the stack map frame and offset delta are combined
-      } else if (frameType >= 251 && frameType <= 254) {
+      } else if (isAppendFrame || isSameFrameExtended) {
         // append frame
         // same frame extended
         stackMapTableAttributeLength += 3; // type of the stack map frame, offset delta, and additional information
@@ -384,8 +387,7 @@ export class ClassFileGenerator {
     stackMapTableConstantIndex,
     stackMapTableAttrLength
   }) {
-
-    console.log(`StackMapTable attribute length: ${stackMapTableAttrLength}`);
+    console.log('Writing StackMapTable', { stackMapTable, stackMapTableConstantIndex, stackMapTableAttrLength });
 
     this.writeU2(stackMapTableConstantIndex); // attribute_name_index
     this.writeU4(stackMapTableAttrLength); // StackMapTable attribute length
@@ -395,16 +397,19 @@ export class ClassFileGenerator {
       const frameType = entry.frameType || entry.offsetDelta;
       const isAppendFrame = frameType >= 252 && frameType <= 254;
       const isSameFrame = frameType >= 0 && frameType <= 63;
+      const isSameFrameExtended = frameType === 251;
 
-      if (!isSameFrame && !isAppendFrame) {
+      if ([isSameFrame, isSameFrameExtended, isAppendFrame].every(v => !v)) {
         throw new Error(`Invalid frame type: ${frameType}`);
       }
 
+      console.log('Writing StackMapTable entry', { frameType, isAppendFrame, isSameFrameExtended });
       this.writeU1(frameType); // frame type
 
-      if (isAppendFrame) {
+      if (isAppendFrame || isSameFrameExtended) {
         this.writeU2(entry.offsetDelta); // offset delta
-        if (entry.locals) {
+
+        if (isAppendFrame && entry.locals) {
           for (const local of entry.locals) {
             this.writeU1(local.type); // write local type
 

@@ -214,6 +214,7 @@ function parseStackMapTable(reader) {
     const frameType = bufferToInt(reader.read(1));
     const isAppendFrame = frameType >= 252 && frameType <= 254;
     const isSameFrame = frameType >= 0 && frameType <= 63;
+    const isSameFrameExtended = frameType === 251;
 
     if (isAppendFrame) {
       // AppendFrame {
@@ -241,6 +242,13 @@ function parseStackMapTable(reader) {
       //     u1 frame_type;
       // }
       entries.push({ frameType });
+    } else if (isSameFrameExtended) {
+      // SameFrameExtended {
+      //     u1 frame_type = 251;
+      //     u2 offset_delta;
+      // }
+      const offsetDelta = bufferToInt(reader.read(2));
+      entries.push({ frameType, offsetDelta });
     }
   }
 

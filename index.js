@@ -192,7 +192,6 @@ export function brainfuckIRToJVM(irInstructions, {
 
     stackMapTable[i].offsetDelta = offsetDelta;
 
-
     if (offsetDelta > 63) {
       stackMapTable[i].frameType = 251; // same frame extended
     }
@@ -203,8 +202,6 @@ export function brainfuckIRToJVM(irInstructions, {
     { type: 7, cpoolIndex: 21 }, // byte[] the cells
     { type: 1 }, // int the head
   ];
-
-  // console.log({ stackMapTable })
 
   return {
     code: Buffer.from(code),
