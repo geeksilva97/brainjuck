@@ -43,7 +43,7 @@ Demo, video below:
 #### Run the Generated Class
 
 ```sh
-java -XX:+IgnoreUnrecognizedVMOptions -noverify OutputClassName
+java OutputClassName
 ```
 
 ## Examples
@@ -52,17 +52,12 @@ Compile and run the classic "Hello, World!":
 
 ```sh
 ./brainjuck samples/helloworld.bf HelloWorld
-java -XX:+IgnoreUnrecognizedVMOptions -noverify HelloWorld
+java HelloWorld
 ```
 
-## Limitations
+## Implementation Details
 
-The generated JVM byte code doesn't have a StackMapTable attribute (that is needed for jumps [`ifeq`][] and [`ifneq`][]). That's why the flag `-noverify` is needed when running the generated class.
-
-I plan to add it soon.
-
-[`ifeq`]: https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-6.html#jvms-6.5.if_cond
-[`ifneq`]: https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-6.html#jvms-6.5.if_cond
+The compiler generates proper JVM bytecode with valid StackMapTable attributes, ensuring compatibility with modern JVM bytecode verification requirements. The generated classes can run on any standard JVM without special flags.
 
 ---
 
