@@ -166,7 +166,6 @@ export class ClassFileGenerator {
     }
   }
 
-  // Generate a simple "Hello World" class
   generateHelloWorldClass(className = 'HelloWorld', makeInstructions = () => []) {
     // Reset buffer and constants
     this.buffer = [];
@@ -318,13 +317,15 @@ export class ClassFileGenerator {
     // u2 exception_table_length
     // u2 attributes_count
     const CODE_ATTR_BASE_SIZE = 12;
-    const STACK_MAP_TABLE_ATTR_BASE_SIZE = 6; // u2 attribute_name_index + u4 attribute_length 
+    // const STACK_MAP_TABLE_ATTR_BASE_SIZE = 6; // u2 attribute_name_index + u4 attribute_length 
     this.writeU2(codeNameIndex); // attribute_name_index
 
-    const stackMapTableAttrLength = this.getStackMapTableSize(stackMapTable);
-    console.log('jvmisntructions.length', jvmInstructions.length, 'stackMapTableAttrLength', stackMapTableAttrLength, 'STACK_MAP_TABLE_ATTR_BASE_SIZE', STACK_MAP_TABLE_ATTR_BASE_SIZE);
+    const computedStackMapTable = this.computeStackMapTable({
+      stackMapTable,
+      stackMapTableConstantIndex
+    });
 
-    this.writeU4(CODE_ATTR_BASE_SIZE + jvmInstructions.length + stackMapTableAttrLength + STACK_MAP_TABLE_ATTR_BASE_SIZE); // attribute_length
+    this.writeU4(CODE_ATTR_BASE_SIZE + jvmInstructions.length + computedStackMapTable.length); // attribute_length
     this.writeU2(4); // max_stack
     this.writeU2(3); // max_locals
     this.writeU4(jvmInstructions.length); // code_length
@@ -335,17 +336,60 @@ export class ClassFileGenerator {
     this.writeU2(codeAttributesCount); // attributes_count
 
     if (codeAttributesCount > 0) {
-      this.writeStackMapTable({
-        stackMapTable,
-        stackMapTableConstantIndex,
-        stackMapTableAttrLength
-      });
+      this.writeBytes(computedStackMapTable);
     }
 
     // Class attributes
     this.writeU2(0); // attributes_count
 
     return new Uint8Array(this.buffer);
+  }
+
+  computeStackMapTable({
+    stackMapTable,
+    stackMapTableConstantIndex,
+  }) {
+    const gen = new ClassFileGenerator();
+    gen.writeU2(stackMapTableConstantIndex); // attribute_name_index
+
+    const entriesBuf = new ClassFileGenerator();
+    for (const entry of stackMapTable) {
+      const frameType = entry.frameType || entry.offsetDelta;
+      const isAppendFrame = frameType >= 252 && frameType <= 254;
+      const isSameFrame = frameType >= 0 && frameType <= 63;
+      const isSameFrameExtended = frameType === 251;
+
+      if ([isSameFrame, isSameFrameExtended, isAppendFrame].every(v => !v)) {
+        throw new Error(`Invalid frame type: ${frameType}`);
+      }
+
+      entriesBuf.writeU1(frameType); // frame type
+
+      if (isAppendFrame || isSameFrameExtended) {
+        entriesBuf.writeU2(entry.offsetDelta); // offset delta
+      }
+
+      if (entry.locals) {
+        for (const local of entry.locals) {
+          entriesBuf.writeU1(local.type); // write local type
+
+          if (local.type === 7) { // Object type
+            entriesBuf.writeU2(local.cpoolIndex); // write constant pool index for object type
+          }
+        }
+      }
+    }
+
+    const numberEntries = stackMapTable.length;
+
+    console.log(entriesBuf.buffer, 'len', entriesBuf.buffer.length);
+
+    gen.writeU4(numberEntries + entriesBuf.buffer.length); // attribute_length
+    gen.writeU2(numberEntries); // number of entries in StackMapTable
+    gen.writeBytes(entriesBuf.buffer);
+
+    console.log('Computing StackMapTable', { stackMapTable, buf: Buffer.from(gen.buffer), bufLen: gen.buffer.length });
+    return gen.buffer;
   }
 
   getStackMapTableSize(stackMapTable) {
@@ -379,47 +423,9 @@ export class ClassFileGenerator {
       }
     }
 
+    console.log({stackMapTableAttributeLength})
+
     return stackMapTableAttributeLength;
-  }
-
-  writeStackMapTable({
-    stackMapTable,
-    stackMapTableConstantIndex,
-    stackMapTableAttrLength
-  }) {
-    console.log('Writing StackMapTable', { stackMapTable, stackMapTableConstantIndex, stackMapTableAttrLength });
-
-    this.writeU2(stackMapTableConstantIndex); // attribute_name_index
-    this.writeU4(stackMapTableAttrLength); // StackMapTable attribute length
-    this.writeU2(stackMapTable.length); // number of entries in StackMapTable
-
-    for (const entry of stackMapTable) {
-      const frameType = entry.frameType || entry.offsetDelta;
-      const isAppendFrame = frameType >= 252 && frameType <= 254;
-      const isSameFrame = frameType >= 0 && frameType <= 63;
-      const isSameFrameExtended = frameType === 251;
-
-      if ([isSameFrame, isSameFrameExtended, isAppendFrame].every(v => !v)) {
-        throw new Error(`Invalid frame type: ${frameType}`);
-      }
-
-      console.log('Writing StackMapTable entry', { frameType, isAppendFrame, isSameFrameExtended });
-      this.writeU1(frameType); // frame type
-
-      if (isAppendFrame || isSameFrameExtended) {
-        this.writeU2(entry.offsetDelta); // offset delta
-
-        if (isAppendFrame && entry.locals) {
-          for (const local of entry.locals) {
-            this.writeU1(local.type); // write local type
-
-            if (local.type === 7) { // Object type
-              this.writeU2(local.cpoolIndex); // write constant pool index for object type
-            }
-          }
-        }
-      }
-    }
   }
 
   static saveToFile(filename, classData) {
