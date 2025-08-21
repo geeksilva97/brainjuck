@@ -153,7 +153,7 @@ const asHex = (n) => {
  * @param {BufferReader} reader
  * @returns {Array<{ maxStack: number; maxLocals: number; codeLength: number; codeFirstByteAt: number; code: Buffer; exceptionTableLength: number; attributes: Array<any> }>}
  */
-function parseCodeAttribute2(reader) {
+function parseCodeAttribute(reader) {
   // Code_attribute {
   //     u2 attribute_name_index;
   //     u4 attribute_length;
@@ -192,6 +192,61 @@ function parseCodeAttribute2(reader) {
     attributes: attrs
   };
 }
+
+/**
+ * @param {BufferReader} reader
+ * @returns {number}
+ */
+function parseStackMapTable(reader) {
+  // StackMapTable_attribute {
+  //     u2              attribute_name_index;
+  //     u4              attribute_length;
+  //     u2              number_of_entries;
+  //     stack_map_frame entries[number_of_entries];
+  // }
+  //
+  // the first six bytes were consumed in the parseAttributes already
+
+  const numberOfEntries = bufferToInt(reader.read(2));
+
+  const entries = [];
+  for (let i = 0; i < numberOfEntries; ++i) {
+    const frameType = bufferToInt(reader.read(1));
+    const isAppendFrame = frameType >= 252 && frameType <= 254;
+    const isSameFrame = frameType >= 0 && frameType <= 63;
+
+    if (isAppendFrame) {
+      // AppendFrame {
+      //     u1 frame_type;
+      //     u2 offset_delta;
+      //     verification_type_info locals[frame_type - 251];
+      // }
+      const offsetDelta = bufferToInt(reader.read(2));
+      const locals = [];
+      for (let j = 0; j < frameType - 251; ++j) {
+        const localType = bufferToInt(reader.read(1));
+
+        // Object_variable_info
+        if (localType === 7) {
+          const cpoolIndex = bufferToInt(reader.read(2));
+          locals.push({ localType, cpoolIndex });
+          continue;
+        }
+
+        locals.push({ localType });
+      }
+      entries.push({ frameType, offsetDelta, locals });
+    }else if (isSameFrame) {
+      // SameFrame {
+      //     u1 frame_type;
+      // }
+      entries.push({ frameType });
+    }
+  }
+
+  return entries;
+}
+
 
 /**
  * @param {BufferReader} reader
@@ -260,7 +315,7 @@ function parseAttributes(reader, attrCount) {
 
     switch (attributeName) {
       case 'Code':
-        currentAttr.data = parseCodeAttribute2(
+        currentAttr.data = parseCodeAttribute(
           new BufferReader(attributeBytes, false)
         );
         break;
@@ -275,6 +330,11 @@ function parseAttributes(reader, attrCount) {
           new BufferReader(attributeBytes)
         );
         break;
+      case 'StackMapTable':
+        currentAttr.data = parseStackMapTable(
+          new BufferReader(attributeBytes)
+        );
+        break
       default:
         console.warn(`Unable to parse attribute of kind ${attributeName}`);
         continue;
@@ -347,6 +407,7 @@ function disasembleMethod(methodName) {
 
   if (methodName === 'main') {
     console.log(methodCodeAttr)
+    console.log('code attribute =', methodCodeAttr.data.attributes);
   }
 
   const code = methodCodeAttr.data.code;

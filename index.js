@@ -130,7 +130,6 @@ export function brainfuckIRToJVM(irInstructions, {
           jvmPc += jvmIns.length;
         }
         break;
-
       case 'move_head':
         {
           const jvmIns = move_head(ins.head);
@@ -138,7 +137,6 @@ export function brainfuckIRToJVM(irInstructions, {
           jvmPc += jvmIns.length;
         }
         break;
-
       case 'jump_eqz':
         {
           const jvmIns = jump_eqz(0);
@@ -149,7 +147,6 @@ export function brainfuckIRToJVM(irInstructions, {
           code = code.concat(jvmIns);
         }
         break;
-
       case 'jump_neqz':
         {
           const jvmIns = jump_neqz(0);
@@ -160,7 +157,6 @@ export function brainfuckIRToJVM(irInstructions, {
           code = code.concat(jvmIns);
         }
         break;
-
       case 'halt':
         code = code.concat(OPCODES.return);
         break;
@@ -172,6 +168,8 @@ export function brainfuckIRToJVM(irInstructions, {
   for (const p of patches) {
     const targetPc = labelPC.get(p.targetIr);
     const branchPc = p.at - 1; // opcode is 1 byte before the offset
+
+    // calculating the offset from the branch instruction
     const offset = targetPc - branchPc;
     code.splice(p.at, 2, ...intTo2Bytes(offset));
   }
