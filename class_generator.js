@@ -382,50 +382,12 @@ export class ClassFileGenerator {
 
     const numberEntries = stackMapTable.length;
 
-    console.log(entriesBuf.buffer, 'len', entriesBuf.buffer.length);
-
     gen.writeU4(numberEntries + entriesBuf.buffer.length); // attribute_length
     gen.writeU2(numberEntries); // number of entries in StackMapTable
     gen.writeBytes(entriesBuf.buffer);
 
     console.log('Computing StackMapTable', { stackMapTable, buf: Buffer.from(gen.buffer), bufLen: gen.buffer.length });
     return gen.buffer;
-  }
-
-  getStackMapTableSize(stackMapTable) {
-    const STACK_MAP_TABLE_ATTR_BASE_SIZE = 2; // u2 number_of_entries
-    let stackMapTableAttributeLength = STACK_MAP_TABLE_ATTR_BASE_SIZE;
-    for (const entry of stackMapTable) {
-      const frameType = entry.frameType || entry.offsetDelta;
-      const isAppendFrame = frameType >= 252 && frameType <= 254;
-      const isSameFrame = frameType >= 0 && frameType <= 63;
-      const isSameFrameExtended = frameType === 251;
-
-      if (isSameFrame) {
-        // same frame
-        stackMapTableAttributeLength += 1; // type of the stack map frame and offset delta are combined
-      } else if (isAppendFrame || isSameFrameExtended) {
-        // append frame
-        // same frame extended
-        stackMapTableAttributeLength += 3; // type of the stack map frame, offset delta, and additional information
-      } else {
-        throw new Error(`Invalid frame type: ${frameType}`);
-      }
-
-
-      if (entry.locals) {
-        for (const local of entry.locals) {
-          stackMapTableAttributeLength += 1; // local type
-          if (local.type === 7) { // Object type
-            stackMapTableAttributeLength += 2; // constant pool index for object type
-          }
-        }
-      }
-    }
-
-    console.log({stackMapTableAttributeLength})
-
-    return stackMapTableAttributeLength;
   }
 
   static saveToFile(filename, classData) {
