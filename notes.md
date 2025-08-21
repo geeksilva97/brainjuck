@@ -541,3 +541,49 @@ zooming in
 order is different... is this allowed?
 
 StackMapTable must be sorted by increasing offset. Among the targets {2,14}, the smallest is 2, so it comes firs
+
+
+---- 
+
+it works for same freame but breaks for same frame extended
+
+
+BELOW WORKS!!
+
+Computing StackMapTable {
+  stackMapTable: [
+    { targetPc: 24, offsetDelta: 24, frameType: 253, locals: [Array] },
+    { targetPc: 58, offsetDelta: 33 }
+  ],
+  buf: <Buffer 00 13 00 00 00 0a 00 02 fd 00 18 07 00 15 01 21>,
+  bufLen: 16
+}
+
+Let's take `00 13 00 00 00 0a 00 02 fd 00 18 07 00 15 01 21`
+
+- `00 13` is the entry to the constant pool that has the constant `StackMapTable`
+- `00 00 00 0a` is the attribute length (10 bytes)
+- `00 02 fd 00 18 07 00 15 01 21` notice this has 10 as expected
+
+----
+
+BELOW FAILS|
+
+Computing StackMapTable {
+  stackMapTable: [
+    { targetPc: 24, offsetDelta: 24, frameType: 253, locals: [Array] },
+    { targetPc: 58, offsetDelta: 33 },
+    { targetPc: 98, offsetDelta: 64, frameType: 251 },
+    { targetPc: 132, offsetDelta: 67, frameType: 251 }
+  ],
+  buf: <Buffer 00 13 00 00 00 12 00 04 fd 00 18 07 00 15 01 21 fb 00 40 fb 00 43>,
+  bufLen: 22
+}
+
+I think is has to do with the mismatching length
+
+Let's take `00 13 00 00 00 12 00 04 fd 00 18 07 00 15 01 21 fb 00 40 fb 00 43`
+
+- `00 13` is the entry to the constant pool that has the constant `StackMapTable`
+- `00 00 00 12` is the attribute length (18 bytes)
+- `00 04 fd 00 18 07 00 15 01 21 fb 00 40 fb 00 43` notice this has 16 bytes not the 18 bytes we expected

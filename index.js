@@ -176,7 +176,6 @@ export function brainfuckIRToJVM(irInstructions, {
     // calculating the offset from the branch instruction
     const offset = targetPc - branchPc;
     code.splice(p.at, 2, ...intTo2Bytes(offset));
-    // console.log('offset', offset, 'at', p.at, 'targetPc', targetPc, 'branchPc', branchPc, 'sum', offset + branchPc);
 
     // const previousStackFrameOffsetDelta = stackMapTable[i - 1]?.offsetDelta + 1 || 0;
     stackMapTable[i] = {
@@ -207,7 +206,6 @@ export function brainfuckIRToJVM(irInstructions, {
     code: Buffer.from(code),
     stackMapTable,
   };
-  // return Buffer.from(code);
 }
 
 function readByte() {

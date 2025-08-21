@@ -345,6 +345,30 @@ export class ClassFileGenerator {
     return new Uint8Array(this.buffer);
   }
 
+  getFrameTypeDescription(frameType) {
+    if (frameType >= 0 && frameType <= 63) {
+      return `SameFrame (${frameType})`;
+    } else if (frameType === 64) {
+      return 'SameLocals1StackItemFrame';
+    } else if (frameType === 65) {
+      return 'SameLocals1StackItemFrameExtended';
+    } else if (frameType >= 67 && frameType <= 70) {
+      return `SameLocals${frameType - 64}StackItemFrame`;
+    } else if (frameType === 247) {
+      return 'SameLocals1StackItemFrameExtended';
+    } else if (frameType >= 248 && frameType <= 250) {
+      return `ChopFrame (${frameType - 251})`;
+    } else if (frameType === 251) {
+      return 'SameFrameExtended';
+    } else if (frameType >= 252 && frameType <= 254) {
+      return `AppendFrame (${frameType - 251})`;
+    } else if (frameType === 255) {
+      return 'FullFrame';
+    } else {
+      return `Unknown Frame Type (${frameType})`;
+    }
+  }
+
   computeStackMapTable({
     stackMapTable,
     stackMapTableConstantIndex,
@@ -354,7 +378,9 @@ export class ClassFileGenerator {
 
     const entriesBuf = new ClassFileGenerator();
     for (const entry of stackMapTable) {
+      let entrySize = 0;
       const frameType = entry.frameType || entry.offsetDelta;
+      const frameTypeDescription = this.getFrameTypeDescription(frameType);
       const isAppendFrame = frameType >= 252 && frameType <= 254;
       const isSameFrame = frameType >= 0 && frameType <= 63;
       const isSameFrameExtended = frameType === 251;
@@ -363,26 +389,41 @@ export class ClassFileGenerator {
         throw new Error(`Invalid frame type: ${frameType}`);
       }
 
+      console.log('writing entry type', frameType, `(${frameTypeDescription})`);
       entriesBuf.writeU1(frameType); // frame type
+      entrySize += 1;
 
       if (isAppendFrame || isSameFrameExtended) {
+        console.log(`\twriting offset delta (${entry.offsetDelta}) for ${frameTypeDescription}`);
         entriesBuf.writeU2(entry.offsetDelta); // offset delta
+        entrySize += 2;
       }
 
       if (entry.locals) {
+        console.log(`\twriting locals for ${frameTypeDescription}`);
         for (const local of entry.locals) {
+          console.log(`\t\twriting local (${local.type})`);
           entriesBuf.writeU1(local.type); // write local type
+          entrySize += 1;
 
           if (local.type === 7) { // Object type
+            console.log(`\t\twriting cpoolindex for object (${local.cpoolIndex})`);
             entriesBuf.writeU2(local.cpoolIndex); // write constant pool index for object type
+            entrySize += 2;
           }
         }
       }
+
+      // console.log('ENTRY SIZE', entrySize)
+
+      console.log()
     }
 
     const numberEntries = stackMapTable.length;
+    console.log({ numberEntries, buflen: entriesBuf.buffer.length });
 
-    gen.writeU4(numberEntries + entriesBuf.buffer.length); // attribute_length
+    // 2 is the size of number_of_entries (u2)
+    gen.writeU4(2 + entriesBuf.buffer.length); // attribute_length
     gen.writeU2(numberEntries); // number of entries in StackMapTable
     gen.writeBytes(entriesBuf.buffer);
 
