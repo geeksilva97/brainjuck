@@ -84,7 +84,7 @@ test('brainfuck to JVM bytecode', (t) => {
   ]
   `);
 
-  const jvmCode = brainfuckIRToJVM(instructions, {
+  const { code: jvmCode } = brainfuckIRToJVM(instructions, {
     input: { 
       fieldRefIndex: 0,
       methodRefIndex: 0
@@ -112,8 +112,8 @@ test('brainfuck to JVM bytecode', (t) => {
     Buffer.from([OPCODES.return]),
   ]);
 
-  console.log(jvmCode.toString('hex'))
-  console.log(expectedCode.toString('hex'))
+  // console.log(jvmCode.toString('hex'))
+  // console.log(expectedCode.toString('hex'))
 
   t.assert.strictEqual(Buffer.compare(jvmCode, expectedCode), 0);
 });

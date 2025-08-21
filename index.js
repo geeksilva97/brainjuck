@@ -87,6 +87,7 @@ export function brainfuckIRToJVM(irInstructions, {
   input: iin,
   output: out
 }) {
+  const stackMapTable = [];
   let code = [
     ...[0x11, ...intTo2Bytes(30_000)], // sipush 30000
     ...[0xbc, 0x08], // newarray byte
@@ -145,6 +146,7 @@ export function brainfuckIRToJVM(irInstructions, {
           // setting -2 to put it right in the placeholder
           patches.push({ at: jvmPc - 2, targetIr: ins.jmp, kind: 'cond' });
           code = code.concat(jvmIns);
+          stackMapTable.push({});
         }
         break;
       case 'jump_neqz':
@@ -155,6 +157,7 @@ export function brainfuckIRToJVM(irInstructions, {
           // setting -2 to put it right in the placeholder
           patches.push({ at: jvmPc - 2, targetIr: ins.jmp, kind: 'cond' });
           code = code.concat(jvmIns);
+          stackMapTable.push({});
         }
         break;
       case 'halt':
@@ -165,18 +168,49 @@ export function brainfuckIRToJVM(irInstructions, {
     }
   }
 
-  for (const p of patches) {
+  for (let i = 0; i < patches.length; ++i) {
+    const p = patches[i];
     const targetPc = labelPC.get(p.targetIr);
     const branchPc = p.at - 1; // opcode is 1 byte before the offset
 
     // calculating the offset from the branch instruction
     const offset = targetPc - branchPc;
     code.splice(p.at, 2, ...intTo2Bytes(offset));
+    // console.log('offset', offset, 'at', p.at, 'targetPc', targetPc, 'branchPc', branchPc, 'sum', offset + branchPc);
+
+    // const previousStackFrameOffsetDelta = stackMapTable[i - 1]?.offsetDelta + 1 || 0;
+    stackMapTable[i] = {
+      targetPc,
+    };
   }
 
-  // TODO: compute the stack map table from the code
+  stackMapTable.sort((a, b) => a.targetPc - b.targetPc);
 
-  return Buffer.from(code);
+  for (let i = 0; i < stackMapTable.length; ++i) {
+    const previousStackFrameOffsetDelta = stackMapTable[i - 1]?.offsetDelta + 1 || 0;
+    const offsetDelta = stackMapTable[i].targetPc - previousStackFrameOffsetDelta;
+
+    stackMapTable[i].offsetDelta = offsetDelta;
+
+
+    if (offsetDelta > 63) {
+      stackMapTable[i].frameType = 251; // same frame extended
+    }
+  }
+
+  stackMapTable[0].frameType = 253;
+  stackMapTable[0].locals = [
+    { type: 7, cpoolIndex: 21 }, // byte[] the cells
+    { type: 1 }, // int the head
+  ];
+
+  // console.log({ stackMapTable })
+
+  return {
+    code: Buffer.from(code),
+    stackMapTable,
+  };
+  // return Buffer.from(code);
 }
 
 function readByte() {

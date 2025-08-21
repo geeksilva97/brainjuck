@@ -416,22 +416,22 @@ I think i got an idea
          3: iconst_2
          4: irem
          5: iconst_1
-         6: if_icmpne     20
+         6: if_icmpne     20 (offset 14)
          9: getstatic     #7                  // Field java/lang/System.out:Ljava/io/PrintStream;
         12: ldc           #13                 // String 3 is odd
         14: invokevirtual #15                 // Method java/io/PrintStream.println:(Ljava/lang/String;)V
-        17: goto          28
+        17: goto          28 (offset 11)
         20: getstatic     #7                  // Field java/lang/System.out:Ljava/io/PrintStream;
         23: ldc           #21                 // String 3 is even
         25: invokevirtual #15                 // Method java/io/PrintStream.println:(Ljava/lang/String;)V
         28: iload_1
         29: iconst_2
         30: irem
-        31: ifne          45
+        31: ifne          45 (offset 14)
         34: getstatic     #7                  // Field java/lang/System.out:Ljava/io/PrintStream;
         37: ldc           #23                 // String 4 is odd
         39: invokevirtual #15                 // Method java/io/PrintStream.println:(Ljava/lang/String;)V
-        42: goto          53
+        42: goto          53 (offset 11)
         45: getstatic     #7                  // Field java/lang/System.out:Ljava/io/PrintStream;
         48: ldc           #25                 // String 4 is even
         50: invokevirtual #15                 // Method java/io/PrintStream.println:(Ljava/lang/String;)V
@@ -476,3 +476,68 @@ zooming in
     The only attributes defined by this specification as appearing in the attributes table of a Code attribute are the LineNumberTable (§4.7.12), LocalVariableTable (§4.7.13), LocalVariableTypeTable (§4.7.14), and StackMapTable (§4.7.4) attributes.
 
     If a Java Virtual Machine implementation recognizes class files whose version number is 50.0 or above, it must recognize and correctly read StackMapTable (§4.7.4) attributes found in the attributes table of a Code attribute of a class file whose version number is 50.0 or above.
+
+----
+  public static void main(java.lang.String[]);
+    descriptor: ([Ljava/lang/String;)V
+    flags: (0x0009) ACC_PUBLIC, ACC_STATIC
+    Code:
+      stack=4, locals=3, args_size=1
+         0: sipush        30000
+         3: newarray       byte
+         5: astore_1
+         6: iconst_0
+         7: istore_2
+         8: aload_1
+         9: iload_2
+        10: aload_1
+        11: iload_2
+        12: baload
+        13: iconst_1
+        14: iadd
+        15: i2b
+        16: bastore
+        17: aload_1
+        18: iload_2
+        19: aload_1
+        20: iload_2
+        21: baload
+        22: iconst_1
+        23: iadd
+        24: i2b
+        25: bastore
+        26: aload_1
+        27: iload_2
+        28: aload_1
+        29: iload_2
+        30: baload
+        31: iconst_1
+        32: iadd
+        33: i2b
+        34: bastore
+        35: aload_1
+        36: iload_2
+        37: baload
+        38: ifeq          53
+        41: aload_1
+        42: iload_2
+        43: aload_1
+        44: iload_2
+        45: baload
+        46: iconst_1
+        47: isub
+        48: i2b
+        49: bastore
+        50: goto          35
+        53: return
+      StackMapTable: number_of_entries = 2
+        frame_type = 253 /* append */
+          offset_delta = 35
+          locals = [ class "[B", int ]
+        frame_type = 17 /* same */
+
+
+
+order is different... is this allowed?
+
+StackMapTable must be sorted by increasing offset. Among the targets {2,14}, the smallest is 2, so it comes firs

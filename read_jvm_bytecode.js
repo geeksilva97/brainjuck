@@ -378,6 +378,7 @@ const opcodes = {
   0x4c: 'astore_1',
   0x4d: 'astore_2',
   0x2a: 'aload_0',
+  0x2b: 'aload_1',
   0xb1: 'return',
   0xb2: 'getstatic',
   0xb3: 'putstatic',
@@ -407,13 +408,15 @@ function disasembleMethod(methodName) {
 
   if (methodName === 'main') {
     console.log(methodCodeAttr)
-    console.log('code attribute =', methodCodeAttr.data.attributes);
   }
 
+  const stackMapTableAttr = methodCodeAttr.data.attributes.find(attr => attr.resolvedName === 'StackMapTable');
+  console.log('StackMapTable attribute:', stackMapTableAttr ? 'present' : 'not present');
+  console.log(stackMapTableAttr)
+  console.log('frame1 (locals)', stackMapTableAttr.data[0]?.locals)
   const code = methodCodeAttr.data.code;
   const byteCodeReader = new BufferReader(code);
   while (byteCodeReader.position < code.length) {
-    // console.log('PC =', byteCodeReader.position, 'of', code.length);
     const byte = byteCodeReader.read();
     const opcode = opcodes[byte[0]];
 
@@ -491,9 +494,10 @@ function disasembleMethod(methodName) {
       case 'if_icmpne':
       case 'ifne':
         {
+          const opcodePc = byteCodeReader.position - 1; // -1 because we read the opcode already
           const pc = bufferToInt(byteCodeReader.read(2));
 
-          console.log(`\t${opcode}`, pc);
+          console.log(`\t${opcode}`, pc, `(${opcodePc + pc})`);
         }
         break;
 

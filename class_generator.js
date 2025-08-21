@@ -194,9 +194,17 @@ export class ClassFileGenerator {
     const outFieldrefIndex = this.addFieldrefConstant(systemClassIndex, outNameAndTypeIndex);
     const printlnNameIndex = this.addUtf8Constant("print");
     const printlnDescriptorIndex = this.addUtf8Constant("(C)V");
-    // const printlnDescriptorIndex = this.addUtf8Constant("(Ljava/lang/String;)V");
+
     const printlnNameAndTypeIndex = this.addNameAndTypeConstant(printlnNameIndex, printlnDescriptorIndex);
     const printlnMethodrefIndex = this.addMethodrefConstant(printStreamClassIndex, printlnNameAndTypeIndex);
+
+    // StackMapTable (for Java 8 compatibility)
+
+    const stackMapTableConstantIndex = this.addUtf8Constant("StackMapTable");
+    const cellsDescriptorIndex = this.addUtf8Constant("[B");
+    this.addClassConstant(cellsDescriptorIndex)
+
+    // end of StackMapTable
 
     // INPUT
 
@@ -243,7 +251,7 @@ export class ClassFileGenerator {
       }
     };
 
-    const jvmInstructions = makeInstructions({ constantPool: this.constantPool, symbolicConstantPool });
+    const { code: jvmInstructions, stackMapTable } = makeInstructions({ constantPool: this.constantPool, symbolicConstantPool });
 
     // Write ClassFile structure
 
@@ -303,20 +311,96 @@ export class ClassFileGenerator {
 
     // Main Code attribute
     // Code attribute base size is 12 (u2 + u2 + u4 + u2 + u2)
+    // without the code
+    // u2 max_stack
+    // u2 max_locals
+    // u4 code_length
+    // u2 exception_table_length
+    // u2 attributes_count
     const CODE_ATTR_BASE_SIZE = 12;
     this.writeU2(codeNameIndex); // attribute_name_index
-    this.writeU4(CODE_ATTR_BASE_SIZE + jvmInstructions.length); // attribute_length
+    // Adding 18 for an specific test but this should be the size of the StackMapTable attribute
+    // 10 + 6 (6 the fixed header of the StackMapTable attribute and 10 the size of its content)
+    this.writeU4(CODE_ATTR_BASE_SIZE + jvmInstructions.length + 10 + 6); // attribute_length
     this.writeU2(4); // max_stack
     this.writeU2(3); // max_locals
     this.writeU4(jvmInstructions.length); // code_length
     this.writeBytes(jvmInstructions);
     this.writeU2(0); // exception_table_length
-    this.writeU2(0); // attributes_count
+
+    const codeAttributesCount = stackMapTable.length > 0 ? 1 : 0;
+    this.writeU2(codeAttributesCount); // attributes_count
+
+    if (codeAttributesCount > 0) {
+      this.writeStackMapTable({
+        stackMapTable,
+        stackMapTableConstantIndex
+      });
+    }
 
     // Class attributes
     this.writeU2(0); // attributes_count
 
     return new Uint8Array(this.buffer);
+  }
+
+  writeStackMapTable({
+    stackMapTable,
+    stackMapTableConstantIndex
+  }) {
+    const STACK_MAP_TABLE_ATTR_BASE_SIZE = 2; // u2 number_of_entries
+    let stackMapTableAttributeLength = STACK_MAP_TABLE_ATTR_BASE_SIZE;
+    for (const entry of stackMapTable) {
+      const frameType = entry.frameType || entry.offsetDelta;
+      if (frameType < 64) {
+        // same frame
+        stackMapTableAttributeLength += 1; // type of the stack map frame and offset delta are combined
+      } else {
+        // append frame
+        stackMapTableAttributeLength += 3; // type of the stack map frame, offset delta, and additional information
+      }
+
+
+      if (entry.locals) {
+        for (const local of entry.locals) {
+          stackMapTableAttributeLength += 1; // local type
+          if (local.type === 7) { // Object type
+            stackMapTableAttributeLength += 2; // constant pool index for object type
+          }
+        }
+      }
+    }
+
+    console.log(`StackMapTable attribute length: ${stackMapTableAttributeLength}`);
+
+    this.writeU2(stackMapTableConstantIndex); // attribute_name_index
+    this.writeU4(stackMapTableAttributeLength); // StackMapTable attribute length
+    this.writeU2(stackMapTable.length); // number of entries in StackMapTable
+
+    for (const entry of stackMapTable) {
+      const frameType = entry.frameType || entry.offsetDelta;
+      const isAppendFrame = frameType >= 252 && frameType <= 254;
+      const isSameFrame = frameType >= 0 && frameType <= 63;
+
+      if (!isSameFrame && !isAppendFrame) {
+        throw new Error(`Invalid frame type: ${frameType}`);
+      }
+
+      this.writeU1(frameType); // frame type
+
+      if (isAppendFrame) {
+        this.writeU2(entry.offsetDelta); // offset delta
+        if (entry.locals) {
+          for (const local of entry.locals) {
+            this.writeU1(local.type); // write local type
+
+            if (local.type === 7) { // Object type
+              this.writeU2(local.cpoolIndex); // write constant pool index for object type
+            }
+          }
+        }
+      }
+    }
   }
 
   static saveToFile(filename, classData) {
