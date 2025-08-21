@@ -318,10 +318,14 @@ export class ClassFileGenerator {
     // u2 exception_table_length
     // u2 attributes_count
     const CODE_ATTR_BASE_SIZE = 12;
+    const STACK_MAP_TABLE_ATTR_BASE_SIZE = 6; // u2 attribute_name_index + u4 attribute_length 
     this.writeU2(codeNameIndex); // attribute_name_index
     // Adding 18 for an specific test but this should be the size of the StackMapTable attribute
     // 10 + 6 (6 the fixed header of the StackMapTable attribute and 10 the size of its content)
-    this.writeU4(CODE_ATTR_BASE_SIZE + jvmInstructions.length + 10 + 6); // attribute_length
+
+    const stackMapTableAttrLength = this.getStackMapTableSize(stackMapTable);
+
+    this.writeU4(CODE_ATTR_BASE_SIZE + jvmInstructions.length + stackMapTableAttrLength + STACK_MAP_TABLE_ATTR_BASE_SIZE); // attribute_length
     this.writeU2(4); // max_stack
     this.writeU2(3); // max_locals
     this.writeU4(jvmInstructions.length); // code_length
@@ -334,7 +338,8 @@ export class ClassFileGenerator {
     if (codeAttributesCount > 0) {
       this.writeStackMapTable({
         stackMapTable,
-        stackMapTableConstantIndex
+        stackMapTableConstantIndex,
+        stackMapTableAttrLength
       });
     }
 
@@ -344,10 +349,7 @@ export class ClassFileGenerator {
     return new Uint8Array(this.buffer);
   }
 
-  writeStackMapTable({
-    stackMapTable,
-    stackMapTableConstantIndex
-  }) {
+  getStackMapTableSize(stackMapTable) {
     const STACK_MAP_TABLE_ATTR_BASE_SIZE = 2; // u2 number_of_entries
     let stackMapTableAttributeLength = STACK_MAP_TABLE_ATTR_BASE_SIZE;
     for (const entry of stackMapTable) {
@@ -355,9 +357,12 @@ export class ClassFileGenerator {
       if (frameType < 64) {
         // same frame
         stackMapTableAttributeLength += 1; // type of the stack map frame and offset delta are combined
-      } else {
+      } else if (frameType >= 251 && frameType <= 254) {
         // append frame
+        // same frame extended
         stackMapTableAttributeLength += 3; // type of the stack map frame, offset delta, and additional information
+      } else {
+        throw new Error(`Invalid frame type: ${frameType}`);
       }
 
 
@@ -371,10 +376,19 @@ export class ClassFileGenerator {
       }
     }
 
-    console.log(`StackMapTable attribute length: ${stackMapTableAttributeLength}`);
+    return stackMapTableAttributeLength;
+  }
+
+  writeStackMapTable({
+    stackMapTable,
+    stackMapTableConstantIndex,
+    stackMapTableAttrLength
+  }) {
+
+    console.log(`StackMapTable attribute length: ${stackMapTableAttrLength}`);
 
     this.writeU2(stackMapTableConstantIndex); // attribute_name_index
-    this.writeU4(stackMapTableAttributeLength); // StackMapTable attribute length
+    this.writeU4(stackMapTableAttrLength); // StackMapTable attribute length
     this.writeU2(stackMapTable.length); // number of entries in StackMapTable
 
     for (const entry of stackMapTable) {
