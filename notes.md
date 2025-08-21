@@ -587,3 +587,8 @@ Let's take `00 13 00 00 00 12 00 04 fd 00 18 07 00 15 01 21 fb 00 40 fb 00 43`
 - `00 13` is the entry to the constant pool that has the constant `StackMapTable`
 - `00 00 00 12` is the attribute length (18 bytes)
 - `00 04 fd 00 18 07 00 15 01 21 fb 00 40 fb 00 43` notice this has 16 bytes not the 18 bytes we expected
+
+this calculation was incorrect because i was summing the number of entries to the length of the buffer. it should be
+2 + buffer.length;
+
+my reasoning about the frames was correct but the implementation was incorrect. Claude was able to fix it
