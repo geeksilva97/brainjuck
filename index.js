@@ -186,8 +186,8 @@ export function brainfuckIRToJVM(irInstructions, {
   stackMapTable.sort((a, b) => a.targetPc - b.targetPc);
 
   for (let i = 0; i < stackMapTable.length; ++i) {
-    const previousStackFrameOffsetDelta = stackMapTable[i - 1]?.offsetDelta + 1 || 0;
-    const offsetDelta = stackMapTable[i].targetPc - previousStackFrameOffsetDelta;
+    const previousStackFramePc = stackMapTable[i - 1]?.targetPc || -1;
+    const offsetDelta = stackMapTable[i].targetPc - (previousStackFramePc + 1);
 
     stackMapTable[i].offsetDelta = offsetDelta;
 
