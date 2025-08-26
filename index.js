@@ -56,16 +56,16 @@ export function parseBrainfuck(code) {
           pointerChange += peek === '>' ? 1 : -1;
         }
 
-        pointer += pointerChange;
 
+        if (pointerChange === 0) {
+          continue; // no-op
+        }
+
+        pointer += pointerChange;
         const lastInstruction = instructions[instructions.length - 1];
         if (lastInstruction && lastInstruction.type === 'move_head' && lastInstruction.head + pointerChange === 0) {
           instructions.pop();
           continue;
-        }
-
-        if (pointer === pointerBefore) {
-          continue; // no-op
         }
 
         instructions.push({ type: 'move_head', head: pointer });
@@ -87,6 +87,10 @@ export function parseBrainfuck(code) {
         }
         break;
     }
+  }
+
+  if (loopStack.length > 0) {
+    throw new Error('Unbalanced brackets');
   }
 
   instructions.push({ type: 'halt' })

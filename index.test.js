@@ -57,9 +57,10 @@ test('subsequent move_head are combined', (t) => {
     { type: 'halt' }
   ]);
 
-  ir = parseBrainfuck(`>>>><<<<`);
+  ir = parseBrainfuck(`+++>>>><<<<`);
 
   t.assert.deepStrictEqual(ir, [
+    { type: 'increment', inc: 3 },
     { type: 'halt' }
   ]);
 
