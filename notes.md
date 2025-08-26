@@ -6,7 +6,6 @@ https://github.com/openjdk/jdk/blob/45b7c748737f38c33c4666d17101b051b2fbe2ae/tes
 
 PrintStream => https://github.com/openjdk/jdk/blob/45b7c748737f38c33c4666d17101b051b2fbe2ae/src/java.base/share/classes/java/io/PrintStream.java#L837
 
-
 A classe prinstream fica num binario precopmilado. usando verbose vemos que a classe vem desse shared
 
 `java -verbose:class Brainfuck`

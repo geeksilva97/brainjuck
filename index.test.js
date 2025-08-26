@@ -47,6 +47,32 @@ test('subsequent increments are combined', (t) => {
   ]);
 });
 
+test('subsequent move_head are combined', (t) => {
+  let ir = parseBrainfuck(`
+  >>>>
+  <<<<
+  `);
+
+  t.assert.deepStrictEqual(ir, [
+    { type: 'halt' }
+  ]);
+
+  ir = parseBrainfuck(`>>>><<<<`);
+
+  t.assert.deepStrictEqual(ir, [
+    { type: 'halt' }
+  ]);
+
+  ir = parseBrainfuck(`>>>>+<<<<`);
+
+  t.assert.deepStrictEqual(ir, [
+    { type: 'move_head', head: 4 },
+    { type: 'increment', inc: 1 },
+    { type: 'move_head', head: 0 },
+    { type: 'halt' }
+  ]);
+});
+
 test('combined zero increments are not emitted', (t) => {
   const ir = parseBrainfuck(`
   ++++

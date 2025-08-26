@@ -47,12 +47,27 @@ export function parseBrainfuck(code) {
         break;
       case '>':
       case '<':
-        pointer += c === '>' ? 1 : -1;
+        const pointerBefore = pointer;
+        let pointerChange = c === '>' ? 1 : -1;
+
         while (['>', '<'].includes(code[i + 1])) {
           const peek = code[i + 1];
           i++;
-          pointer += peek === '>' ? 1 : -1;
+          pointerChange += peek === '>' ? 1 : -1;
         }
+
+        pointer += pointerChange;
+
+        const lastInstruction = instructions[instructions.length - 1];
+        if (lastInstruction && lastInstruction.type === 'move_head' && lastInstruction.head + pointerChange === 0) {
+          instructions.pop();
+          continue;
+        }
+
+        if (pointer === pointerBefore) {
+          continue; // no-op
+        }
+
         instructions.push({ type: 'move_head', head: pointer });
         break;
       case '[':
