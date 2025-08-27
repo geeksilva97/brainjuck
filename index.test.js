@@ -1,11 +1,21 @@
 import test from 'node:test';
-import { brainfuckIRToJVM, parseBrainfuck } from './index.js';
+import { brainfuckIRToJVM, parseBrainfuck, tokenizeBrainfuck } from './index.js';
 import { ARRAY_TYPE, intTo2Bytes, increment, OPCODES, sipush, newarray, astore_1, iconst_0, istore_2, move_head, jump_eqz, jump_neqz } from './helpers/jvm.js';
 
-// TODO: mix sequential increment instructions
-// https://github.com/sunjay/brainfuck/blob/master/brainfuck.md
+test('tokenization', (t) => {
+  const tokens = tokenizeBrainfuck(`
+  +++
+  +++
+  --
+  >>>
+  <<<
+  `);
+
+  t.assert.deepStrictEqual(tokens, ['+', '+', '+', '+', '+', '+', '-', '-', '>', '>', '>', '<', '<', '<']);
+});
+
 test('brainfuck parsing', (t) => {
-  const tokens = parseBrainfuck(`
+  const instructions = parseBrainfuck(`
   ,
   .
   ++
@@ -19,7 +29,7 @@ test('brainfuck parsing', (t) => {
   ]
   `);
 
-  t.assert.deepStrictEqual(tokens, [
+  t.assert.deepStrictEqual(instructions, [
     { type: 'input' },
     { type: 'output' },
     { type: 'increment', inc: 2 },

@@ -1,15 +1,26 @@
 import fs from 'node:fs';
 import { increment, input, output, intTo2Bytes, jump_eqz, jump_neqz, move_head, OPCODES } from './helpers/jvm.js';
 
-// By this point, we have a parser that does nothing. It only gives the commands a more complext structure to work with.
-// We can do better
+export function tokenizeBrainfuck(code) {
+  const tokens = [];
+  for (let i = 0; i < code.length; ++i) {
+    const c = code[i];
+    if (['+', '-', '>', '<', '[', ']', '.', ','].includes(c)) {
+      tokens.push(c);
+    }
+  }
+  return tokens;
+}
+
 export function parseBrainfuck(code) {
   const instructions = [];
   const loopStack = [];
   let pointer = 0;
 
-  for (let i = 0; i < code.length; ++i) {
-    const c = code[i];
+  const tokens = tokenizeBrainfuck(code);
+
+  for (let i = 0; i < tokens.length; ++i) {
+    const c = tokens[i];
 
     switch (c) {
       case ',':
@@ -23,22 +34,13 @@ export function parseBrainfuck(code) {
         {
           let inc = c === '+' ? 1 : -1;
 
-          while (['+', '-'].includes(code[i + 1])) {
-            const peek = code[i + 1];
+          while (['+', '-'].includes(tokens[i + 1])) {
+            const peek = tokens[i + 1];
             i++;
             inc += peek === '+' ? 1 : -1;
           }
 
           if (inc === 0) {
-            continue; // no-op
-          }
-
-          const lastInstruction = instructions[instructions.length - 1];
-          if (lastInstruction && lastInstruction.type === 'increment') {
-            lastInstruction.inc += inc;
-            if (lastInstruction.inc === 0) {
-              instructions.pop();
-            }
             continue;
           }
 
@@ -50,23 +52,17 @@ export function parseBrainfuck(code) {
         const pointerBefore = pointer;
         let pointerChange = c === '>' ? 1 : -1;
 
-        while (['>', '<'].includes(code[i + 1])) {
-          const peek = code[i + 1];
+        while (['>', '<'].includes(tokens[i + 1])) {
+          const peek = tokens[i + 1];
           i++;
           pointerChange += peek === '>' ? 1 : -1;
         }
-
 
         if (pointerChange === 0) {
           continue; // no-op
         }
 
         pointer += pointerChange;
-        const lastInstruction = instructions[instructions.length - 1];
-        if (lastInstruction && lastInstruction.type === 'move_head' && lastInstruction.head + pointerChange === 0) {
-          instructions.pop();
-          continue;
-        }
 
         instructions.push({ type: 'move_head', head: pointer });
         break;
@@ -244,7 +240,7 @@ function readByte() {
   return data;
 }
 
-export function executeBrainfuck(code) {
+export function executeBrainfuck(code, {trace = false} = {}) {
   const instructions = parseBrainfuck(code);
   const memory = new Uint8Array(30000);
   let pointer = 0;
@@ -253,7 +249,6 @@ export function executeBrainfuck(code) {
   while (true) {
     // fetch
     const instruction = instructions[pc];
-    // console.log({ pc, instruction, pointer, pointerContent: memory[pointer] })
 
     // decode and execute
     switch (instruction.type) {
@@ -283,7 +278,10 @@ export function executeBrainfuck(code) {
         }
         break;
       case 'halt':
-        console.table(memory.slice(0, 10));
+        if (trace) {
+          console.log('\nFinal memory state:');
+          console.table(memory);
+        }
         return;
       default:
         throw Error(`Unknown instruction ${instruction.type}`);
