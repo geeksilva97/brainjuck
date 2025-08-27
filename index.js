@@ -12,6 +12,26 @@ export function tokenizeBrainfuck(code) {
   return tokens;
 }
 
+/**
+ * @description Combines subsequent increments into one. charMap is a map of character to its increment value.
+ * @param {{[char: string]: number}} charMap
+ * @param {string} token
+ * @param {number} pos
+ * @returns {{inc: number, newPos: number}}
+ */
+const handleSubsequent = (tokens, charMap, token, pos) => {
+  let inc = charMap[token];
+  let totalPeek = pos;
+
+  while (Object.keys(charMap).includes(tokens[totalPeek + 1])) {
+    const peek = tokens[totalPeek + 1];
+    totalPeek++;
+    inc += charMap[peek];
+  }
+
+  return { inc, newPos: totalPeek };
+};
+
 export function parseBrainfuck(code) {
   const instructions = [];
   const loopStack = [];
@@ -32,13 +52,8 @@ export function parseBrainfuck(code) {
       case '+':
       case '-':
         {
-          let inc = c === '+' ? 1 : -1;
-
-          while (['+', '-'].includes(tokens[i + 1])) {
-            const peek = tokens[i + 1];
-            i++;
-            inc += peek === '+' ? 1 : -1;
-          }
+          const { inc, newPos } = handleSubsequent(tokens, { '+': 1, '-': -1 }, c, i);
+          i = newPos;
 
           if (inc === 0) {
             continue;
@@ -49,22 +64,19 @@ export function parseBrainfuck(code) {
         break;
       case '>':
       case '<':
-        const pointerBefore = pointer;
-        let pointerChange = c === '>' ? 1 : -1;
+        {
+          const { inc: pointerChange, newPos } = handleSubsequent(tokens, { '>': 1, '<': -1 }, c, i);
+          i = newPos;
 
-        while (['>', '<'].includes(tokens[i + 1])) {
-          const peek = tokens[i + 1];
-          i++;
-          pointerChange += peek === '>' ? 1 : -1;
+          if (pointerChange === 0) {
+            continue; // no-op
+          }
+
+          pointer += pointerChange;
+
+          instructions.push({ type: 'move_head', head: pointer });
         }
 
-        if (pointerChange === 0) {
-          continue; // no-op
-        }
-
-        pointer += pointerChange;
-
-        instructions.push({ type: 'move_head', head: pointer });
         break;
       case '[':
         loopStack.push([c, instructions.length]);
