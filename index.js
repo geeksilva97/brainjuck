@@ -3,9 +3,10 @@ import { increment, input, output, intTo2Bytes, jump_eqz, jump_neqz, move_head, 
 
 export function tokenizeBrainfuck(code) {
   const tokens = [];
+  const validTokens = new Set(['+', '-', '>', '<', '[', ']', '.', ',']);
   for (let i = 0; i < code.length; ++i) {
     const c = code[i];
-    if (['+', '-', '>', '<', '[', ']', '.', ','].includes(c)) {
+    if (validTokens.has(c)) {
       tokens.push(c);
     }
   }
