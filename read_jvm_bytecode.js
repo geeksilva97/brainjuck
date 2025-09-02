@@ -237,7 +237,7 @@ function parseStackMapTable(reader) {
         locals.push({ localType });
       }
       entries.push({ frameType, offsetDelta, locals });
-    }else if (isSameFrame) {
+    } else if (isSameFrame) {
       // SameFrame {
       //     u1 frame_type;
       // }
@@ -415,15 +415,18 @@ function disasembleMethod(methodName) {
   console.log(`\n---------- Disasembling method "${methodName}" ---------\n`);
 
   if (methodName === 'main') {
-    console.log(methodCodeAttr)
+    console.log('methodCodeAttr', methodCodeAttr)
   }
 
   const stackMapTableAttr = methodCodeAttr.data.attributes.find(attr => attr.resolvedName === 'StackMapTable');
   console.log('StackMapTable attribute:', stackMapTableAttr ? 'present' : 'not present');
-  console.log(stackMapTableAttr)
-  console.log('frame1 (locals)', stackMapTableAttr.data[0]?.locals)
+  if (stackMapTableAttr) {
+    console.log(stackMapTableAttr)
+    console.log('frame1 (locals)', stackMapTableAttr.data[0]?.locals)
+  }
   const code = methodCodeAttr.data.code;
   const byteCodeReader = new BufferReader(code);
+  console.log('Disassembled bytecode:');
   while (byteCodeReader.position < code.length) {
     const byte = byteCodeReader.read();
     const opcode = opcodes[byte[0]];
@@ -541,5 +544,8 @@ console.table(constantPool.reduce((acc, current, index) => {
   return acc;
 }, {}));
 
+console.log('methods', Object.keys(clazz.methods));
+
 // disasembleMethod('<init>');
 disasembleMethod('main');
+
