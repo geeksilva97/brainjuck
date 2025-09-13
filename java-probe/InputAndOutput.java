@@ -5,6 +5,7 @@ public class InputAndOutput {
     byte[] memory = new byte[30000];
     int head = 0;
     memory[head] = (byte) System.in.read();   // reads ASCII code
+    System.out.println( memory[head]);
     System.out.println((char) memory[head]);
   }
 }

@@ -253,19 +253,29 @@ function readByte() {
   return data;
 }
 
-export function executeBrainfuck(code, {trace = false} = {}) {
+export function executeBrainfuck(code, { trace = false } = {}, memory = new Uint8Array(30000)) {
   const instructions = parseBrainfuck(code);
-  const memory = new Uint8Array(30000);
+  // const memory = new Uint8Array(30000);
   let pointer = 0;
   let pc = 0;
+  let stdoutQueue = [];
 
   while (true) {
     // fetch
     const instruction = instructions[pc];
 
+    if (instruction?.type === 'halt') {
+      if (trace) {
+        console.log('\nFinal memory state:');
+        console.table(memory);
+      }
+      break;
+    }
+
     // decode and execute
     switch (instruction.type) {
       case 'output':
+        // console.log({ out: String.fromCharCode(memory[pointer]) });
         process.stdout.write(String.fromCharCode(memory[pointer]));
         process.stdout.write('\n');
         break;
@@ -290,16 +300,12 @@ export function executeBrainfuck(code, {trace = false} = {}) {
           continue;
         }
         break;
-      case 'halt':
-        if (trace) {
-          console.log('\nFinal memory state:');
-          console.table(memory);
-        }
-        return;
       default:
         throw Error(`Unknown instruction ${instruction.type}`);
     }
 
     pc++;
   }
+
+  return { cells: memory, currentCell: pointer, stdoutQueue };
 }
