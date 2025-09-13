@@ -6,26 +6,34 @@ const storage = {
   pointer: 0
 };
 
+let isDebug = process.env.DEBUG ?? false;
+
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout,
   prompt: 'brainjuck> ',
-  history: [
-    '++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++.',
-    '++++++++++>++++++[<++++++++++>-]<-.-.>>+++ + +++[<<+++>>-]<<.',
-    '++++++++++>++++++[<++++++++++>-]<-.-.>>+++ + +++[<<+++>>-]<<.>++++[>++++ ++++<-]>.<<------.>+++++ +++++[<->-]<.+++.>++[<+++++>-]<.>+++++[<---->-]<-.>>+.'
-  ]
 });
 
 rl.prompt();
 
-rl.on('line', (code) => {
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+rl.on('line', async (code) => {
   if (!code.trim().length) {
     rl.prompt();
     return;
   }
 
-  if (code === '.clear') {
+  if (code === '.debug') {
+    isDebug = !isDebug;
+    console.log('Debug mode', isDebug ? 'ON' : 'OFF');
+    rl.prompt();
+    return;
+  }
+
+  if (code === '.forget') {
     storage.cells = new Uint8Array(20);
     storage.pointer = 0;
     console.log('Cleared memory');
@@ -41,13 +49,22 @@ rl.on('line', (code) => {
     return;
   }
 
-  const instructions = parseBrainfuck(code);
-  // console.log(instructions)
+  const instructions = parseBrainfuck(code).map(inst => {
+    // Adjust move_head instructions to be absolute
+    if (inst.type === 'move_head') {
+      return { ...inst, head: storage.pointer + inst.head };
+    }
+    return inst;
+  });
 
   let pc = 0;
   let output = '';
   while (true) {
     const instruction = instructions[pc];
+    if (isDebug) {
+      console.log('PC:', pc, 'Instruction:', instruction);
+      await sleep(500); // Slow down execution for visibility
+    }
 
     if (instruction?.type === 'halt') {
       break;
@@ -59,19 +76,13 @@ rl.on('line', (code) => {
         break;
       case 'output':
         output += String.fromCharCode(storage.cells[storage.pointer]);
-        // process.stdout.write(String.fromCharCode(storage.cells[storage.pointer]));
-        // process.stdout.write('\n');
         break;
       case 'increment':
         // console.log('Increment', instruction.inc, 'at', storage.pointer);
         storage.cells[storage.pointer] += instruction.inc;
         break;
       case 'move_head':
-        if (instruction.head < 0) {
-          storage.pointer += instruction.head;
-        } else {
-          storage.pointer = instruction.head;
-        }
+        storage.pointer = instruction.head; // should take a base pointer to calculate the actual position
         break;
       case 'jump_eqz':
         if (storage.cells[storage.pointer] === 0) {
@@ -95,16 +106,6 @@ rl.on('line', (code) => {
   if (output.length) {
     console.log(`out: ${output}\n`);
   }
-
-  // const { cells, stdoutQueue, currentCell } = executeBrainfuck(code, { trace: false }, Uint8Array.from(storage.cells.length ? storage.cells : new Uint8Array(30000)));
-
-  // storage.cells = cells;
-  // storage.currentCell = currentCell;
-
-  // if (stdoutQueue.length) {
-  //   const fullText = stdoutQueue.join('');
-  //   console.log(`out: ${fullText}\n`);
-  // }
 
   rl.prompt();
 });
