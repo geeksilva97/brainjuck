@@ -1,5 +1,7 @@
+#!/usr/bin/env node
+
 import readline from 'node:readline';
-import { parseBrainfuck } from './index.js';
+import { parseBrainfuck } from '../index.js';
 
 const storage = {
   cells: new Uint8Array(20),
