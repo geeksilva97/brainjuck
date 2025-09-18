@@ -80,14 +80,14 @@ export function parseBrainfuck(code) {
 
         break;
       case '[':
-        loopStack.push([c, instructions.length]);
+        loopStack.push(instructions.length);
         // setting jmp as -1 till the end of loop is reached and the jmp can actually be computed
         instructions.push({ type: 'jump_eqz', jmp: -1 });
         break;
       case ']':
         {
-          const [char, pos] = loopStack.pop();
-          if (char !== '[') {
+          const pos = loopStack.pop();
+          if (pos === undefined) {
             throw new Error('Unbalanced brackets');
           }
 
@@ -275,7 +275,6 @@ export function executeBrainfuck(code, { trace = false } = {}, memory = new Uint
     // decode and execute
     switch (instruction.type) {
       case 'output':
-        // console.log({ out: String.fromCharCode(memory[pointer]) });
         process.stdout.write(String.fromCharCode(memory[pointer]));
         process.stdout.write('\n');
         break;

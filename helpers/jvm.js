@@ -50,16 +50,16 @@ export const move_head = (h) => {
 };
 
 export const increment = (n) => {
-  return []
-    .concat([0x2b]) // aload_1
-    .concat([0x1c]) // iload_2
-    .concat([0x5c]) // dup2
-    .concat([0x33]) // baload
-    .concat([0x11, ...intTo2Bytes(n)]) // sipush n
-    .concat([0x60]) // iadd
-    .concat([0x91]) // i2b
-    .concat([0x54]) // bastore
-    ;
+  return [
+    0x2b, // aload_1
+    0x1c, // iload_2
+    0x5c, // dup2
+    0x33, // baload
+    0x11, ...intTo2Bytes(n), // sipush n
+    0x60, // iadd
+    0x91, // i2b
+    0x54, // bastore
+  ];
 };
 
 export const input = ({ fieldRef, methodRef }) => {

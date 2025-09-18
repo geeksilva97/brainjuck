@@ -80,11 +80,14 @@ rl.on('line', async (code) => {
         output += String.fromCharCode(storage.cells[storage.pointer]);
         break;
       case 'increment':
-        // console.log('Increment', instruction.inc, 'at', storage.pointer);
         storage.cells[storage.pointer] += instruction.inc;
         break;
       case 'move_head':
-        storage.pointer = instruction.head; // should take a base pointer to calculate the actual position
+        storage.pointer = Math.max(0, instruction.head);
+        if (storage.pointer >= storage.cells.length) {
+          storage.pointer = storage.cells.length - 1;
+          console.error('Pointer moved out of bounds, clamped to max cell index');
+        }
         break;
       case 'jump_eqz':
         if (storage.cells[storage.pointer] === 0) {
