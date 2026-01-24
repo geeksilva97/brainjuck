@@ -2,7 +2,7 @@
 
 A Brainfuck-to-JVM bytecode compiler written in JavaScript (Node.js). This project enables you to compile Brainfuck source code into JVM bytecode, allowing Brainfuck programs to run on the Java Virtual Machine (JVM).
 
-![Brainfuck Compiler Demo](image.jpeg)
+![Brainfuck Compiler Demo](brainjuck.png)
 
 ## Features
 
